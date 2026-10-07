@@ -1,4 +1,6 @@
-# Developer Docs MCP Knowledge Base
+# Developer Docs Copilot Grounding
+
+> Formerly published as `dev-docs-mcp-kb-agent`. Old links redirect automatically.
 
 <p align="center">
   <img src="./docs/assets/icons/ai-search.svg" width="40" alt="Azure AI Search">&nbsp;
@@ -22,7 +24,7 @@
   <img src="./docs/assets/badges/static-only.svg" alt="Static-only">
 </p>
 
-A reusable, low-code-first pattern for grounding coding assistants — GitHub Copilot, VS Code agent mode, or any MCP-compatible client — directly on a technical document corpus (hardware datasheets, firmware reference manuals, API specs, internal engineering wikis), via a **native Model Context Protocol (MCP) endpoint exposed by Azure AI Search**. No Foundry Agent Service, Copilot Studio, or M365 Copilot sits in the loop — the coding assistant calls the knowledge base directly as an MCP tool.
+**Ground GitHub Copilot in your developer documentation.** A reusable, low-code-first pattern for grounding coding assistants — GitHub Copilot, VS Code agent mode, or any MCP-compatible client — directly on a technical document corpus (hardware datasheets, firmware reference manuals, API specs, internal engineering wikis), via a **native Model Context Protocol (MCP) endpoint exposed by Azure AI Search**. No Foundry Agent Service, Copilot Studio, or M365 Copilot sits in the loop — the coding assistant calls the knowledge base directly as an MCP tool.
 
 ## At a glance
 
@@ -325,4 +327,4 @@ This folder is checked into Azure DevOps as a standalone repo. `.gitignore` excl
 
 ---
 
-*Last updated: 2026-10-02*
+*Last updated: 2026-10-07*
