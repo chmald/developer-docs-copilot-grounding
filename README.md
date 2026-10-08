@@ -317,9 +317,17 @@ There is no separate pro-code companion repo for this pattern today — the opti
 > [!CAUTION]
 > **Never commit a populated `demo-ids.local.json`, a real Search admin key, or any `.env` file.**
 
-This folder is checked into Azure DevOps as a standalone repo. `.gitignore` excludes secrets and populated local state; `demo-ids.template.json` is the committed reference template for the IDs a real deployment produces — copy it to `demo-ids.local.json` (gitignored) and populate the local copy after your first deploy. **Never commit a populated `demo-ids.local.json`, a real Search admin key, or any `.env` file.** Runtime credentials for the ADO pipeline come from an ADO variable group / Key Vault, not from any file in this repo.
+This repository is published on GitHub as a standalone repo. `.gitignore` excludes secrets and populated local state; `demo-ids.template.json` is the committed reference template for the IDs a real deployment produces — copy it to `demo-ids.local.json` (gitignored) and populate the local copy after your first deploy. **Never commit a populated `demo-ids.local.json`, a real Search admin key, or any `.env` file.** If you use the optional Azure DevOps pipeline, its runtime credentials come from an ADO variable group / Key Vault, not from any file in this repo.
 
 ---
+
+## Moved documents
+
+If you hold a link to an old document path, use the new location below.
+
+| Old path | New location |
+|---|---|
+| `docs/11-customer-walkthrough.md` | [docs/11-demo-walkthrough.md](./docs/11-demo-walkthrough.md) |
 
 ## Decision provenance
 
