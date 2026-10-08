@@ -24,6 +24,9 @@
   <img src="./docs/assets/badges/static-only.svg" alt="Static-only">
 </p>
 
+> [!WARNING]
+> **For testing and demonstration purposes only.** This is a personal reference demo provided "as is" under the [MIT License](LICENSE), without warranty or support. It is not an official Microsoft product or sample, has not been through a production security review, and is not intended for production use. Review, test, and harden it before reusing any part of it, deploy only to non-production subscriptions, and never use real customer or personal data.
+
 **Ground GitHub Copilot in your developer documentation.** A reusable, low-code-first pattern for grounding coding assistants — GitHub Copilot, VS Code agent mode, or any MCP-compatible client — directly on a technical document corpus (hardware datasheets, firmware reference manuals, API specs, internal engineering wikis), via a **native Model Context Protocol (MCP) endpoint exposed by Azure AI Search**. No Foundry Agent Service, Copilot Studio, or M365 Copilot sits in the loop — the coding assistant calls the knowledge base directly as an MCP tool.
 
 ## At a glance
@@ -325,6 +328,16 @@ This folder is checked into Azure DevOps as a standalone repo. `.gitignore` excl
 | <img src="./docs/assets/icons/commit.svg" width="20" alt=""> | 2026-08-13 | Locked v1 architecture: AI Search Knowledge Base + native/fallback MCP exposure for direct GitHub Copilot consumption of technical document corpora | `CHANGELOG.md` 2026-08-13 entry |
 | <img src="./docs/assets/icons/commit.svg" width="20" alt=""> | 2026-08-18 | Corrected against Microsoft Learn: renamed Knowledge Agent → Knowledge Base, fixed the native MCP endpoint path/API version (`/knowledgebases/{name}/mcp`, <img src="./docs/assets/badges/search-api.svg" alt="Search API 2026-05-01-preview">), lowered the AI Search tier floor to Basic, replaced the deprecating `gpt-4o-mini` with `gpt-5-mini`, reframed the custom MCP server as an optional wrapper rather than a required fallback, and restructured all narrative docs under `docs/` with a manual (non-Bicep) deployment path added | `CHANGELOG.md` 2026-08-18 entry |
 
+## Disclaimer
+
+> [!CAUTION]
+> This project is provided for testing, learning, and demonstration purposes only. It is not an official Microsoft product, sample, or service, and it is not supported under any Microsoft support program. Azure services, APIs, and pricing referenced here change over time — validate against current Microsoft Learn documentation before relying on any detail. Deploying it creates billable Azure resources; you are responsible for their cost, security, and cleanup.
+
+## License
+
+> [!NOTE]
+> Released under the [MIT License](LICENSE).
+
 ---
 
-*Last updated: 2026-10-07*
+*Last updated: 2026-10-08*
