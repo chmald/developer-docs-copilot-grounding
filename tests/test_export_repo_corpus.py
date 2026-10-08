@@ -232,7 +232,7 @@ def test_large_chapter_is_subsplit_at_the_next_heading_level():
 
 
 def test_generic_corpus_output_carries_no_hardware_vocabulary(tmp_path):
-    """Reusability guard (hard-rule #14): with extractors off and a non-hardware
+    """Reusability guard (structural reusability): with extractors off and a non-hardware
     display name, nothing the exporter writes around the documents themselves
     may assume a hardware corpus."""
     cache, out = tmp_path / "cache", tmp_path / "out"

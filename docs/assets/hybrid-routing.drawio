@@ -180,7 +180,7 @@
         <mxCell id="rs_lg_PREVIEW" value="PREVIEW" style="rounded=1;arcSize=50;html=1;whiteSpace=nowrap;fillColor=#CA5010;strokeColor=#FFFFFF;strokeWidth=1.5;fontColor=#FFFFFF;fontStyle=1;fontSize=9;align=center;verticalAlign=middle;fontFamily=Segoe UI;" vertex="1" parent="1">
           <mxGeometry x="287" y="763" width="61" height="18" as="geometry" />
         </mxCell>
-        <mxCell id="rs_lgt_PREVIEW" value="preview API or feature: say so to the customer" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#605E5C;fontFamily=Segoe UI;" vertex="1" parent="1">
+        <mxCell id="rs_lgt_PREVIEW" value="preview API or feature: call it out to stakeholders" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#605E5C;fontFamily=Segoe UI;" vertex="1" parent="1">
           <mxGeometry x="354" y="762" width="332" height="20" as="geometry" />
         </mxCell>
         <mxCell id="rs_lg_DEFAULT" value="DEFAULT" style="rounded=1;arcSize=50;html=1;whiteSpace=nowrap;fillColor=#0078D4;strokeColor=#FFFFFF;strokeWidth=1.5;fontColor=#FFFFFF;fontStyle=1;fontSize=9;align=center;verticalAlign=middle;fontFamily=Segoe UI;" vertex="1" parent="1">

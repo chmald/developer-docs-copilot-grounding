@@ -19,7 +19,7 @@ you a page range plus inlined figure descriptions.
 
 Design note: this deliberately mirrors the reporting philosophy of the sibling
 `document-intelligence-vs-content-understanding` demo (normalize both services
-into one comparable shape, then emit a scorecard you can show a customer). That
+into one comparable shape, then emit a scorecard you can share with stakeholders). That
 demo compares *field extraction* on forms; this one compares *chunk quality* for
 RAG, which is a different axis and needs different metrics.
 
@@ -60,7 +60,7 @@ CU_API_VERSION = "2026-05-01-preview"
 CU_SUFFIX = "-cu"
 
 # Published list prices per 1,000 pages (US East, captured 2026-08-20). These
-# move -- re-verify before putting them in front of a customer.
+# move -- re-verify before publishing them.
 #   https://azure.microsoft.com/pricing/details/document-intelligence/
 #   https://azure.microsoft.com/pricing/details/content-understanding/
 PRICE_PER_1K_PAGES = {

@@ -14,7 +14,7 @@ purely speculative feature. That said, the exact API version
 quickly, and the Document Intelligence Layout skill's exact @odata.type /
 output field names are a comparatively recent addition. Re-verify the exact
 REST paths, payload shapes, and skill names against the current Azure AI
-Search REST API reference before a customer-facing build -- see
+Search REST API reference before a production build -- see
 docs/06-mcp-endpoint-and-fallback-server.md.
 
 Usage:

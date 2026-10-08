@@ -23,7 +23,7 @@ out/extraction-comparison-<YYYY-MM-DD>_<HHMMSS>.md     # the readable scorecard
 The measured results worth keeping — the DI-only vs CU-only vs hybrid comparison, the cost
 model, and the model-selection benchmarks — are written up in
 [`../docs/08-extraction-tier-comparison.md`](../docs/08-extraction-tier-comparison.md), which
-**is** version-controlled. Use that for the customer conversation; use this folder for a
+**is** version-controlled. Use that for stakeholder conversations; use this folder for a
 specific run against a specific corpus.
 
 ## Regenerating

@@ -26,7 +26,7 @@ before hitting the same walls.
 > second teardown-and-rebuild found **six more**. Almost every one was invisible to static
 > review, and several presented with error messages that pointed at the wrong thing.
 >
-> The generalisable lesson: **a pattern is not customer-ready until it has been built from
+> The generalisable lesson: **a pattern is not ready for others to reuse until it has been built from
 > zero, twice.** Once proves it can work; twice proves the documentation is what made it work.
 
 ## At a glance
@@ -61,7 +61,7 @@ The limits and measurements that shaped the design, on one page. The same figure
 <sub>Editable source: [`assets/numbers-that-matter.drawio`](./assets/numbers-that-matter.drawio) - regenerate with `python scripts/export_diagrams.py docs/assets`.</sub>
 
 > [!TIP]
-> If you only carry one lesson into a customer conversation, make it this one: **when a service imposes a
+> If you only carry one lesson into a design review, make it this one: **when a service imposes a
 > hard per-call timeout with a total-failure mode, select on latency _variance_, not mean latency — and
 > benchmark more than one input.** See [Corrections to earlier guidance](#corrections-to-earlier-guidance).
 

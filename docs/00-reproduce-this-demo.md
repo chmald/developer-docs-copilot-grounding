@@ -315,7 +315,7 @@ the source document — that is the whole pattern working end to end.
 python demo_walkthrough.py --ids-file ../demo-ids.local.json --script ../samples/walkthrough.example.json --report
 ```
 
-**Checkpoint:** `5/5 steps passed`. Full detail: [11-customer-walkthrough.md](./11-customer-walkthrough.md).
+**Checkpoint:** `5/5 steps passed`. Full detail: [11-demo-walkthrough.md](./11-demo-walkthrough.md).
 
 Optional — if developers want the documents themselves in their repo
 ([10-repo-corpus-export.md](./10-repo-corpus-export.md)):

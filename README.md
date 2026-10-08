@@ -42,7 +42,7 @@
 | <img src="./docs/assets/icons/folder.svg" width="24" alt=""> | **Bonus output** | Repository export — page-cited Markdown and figures committed next to the code ([docs/10](./docs/10-repo-corpus-export.md)). <img src="./docs/assets/badges/opt-in.svg" alt="Opt-in"> <img src="./docs/assets/badges/static-only.svg" alt="Static-only"> |
 
 > [!NOTE]
-> This README is the front door. Start with [`docs/00-reproduce-this-demo.md`](./docs/00-reproduce-this-demo.md) for the checkpointed from-scratch build, jump to the [quick start](#quick-start--one-command) for the one-command path, or read [`docs/08`](./docs/08-extraction-tier-comparison.md) before quoting a customer.
+> This README is the front door. Start with [`docs/00-reproduce-this-demo.md`](./docs/00-reproduce-this-demo.md) for the checkpointed from-scratch build, jump to the [quick start](#quick-start--one-command) for the one-command path, or read [`docs/08`](./docs/08-extraction-tier-comparison.md) before you commit to a tier or a cost estimate.
 
 > [!TIP]
 > **Generic on purpose.** This pattern is document-domain agnostic. Use it for hardware/firmware datasheets, API references, internal engineering runbooks, HR policies, contracts, or research papers — any corpus someone needs grounded, citable answers from. **The ingestion pipeline is corpus-neutral: retargeting it is a config change, not a code change** — see [Adapting this pattern to another document corpus](./docs/01-architecture.md#adapting-this-pattern-to-another-document-corpus). The hardware/firmware framing throughout the docs is the shipped *example* corpus, not a constraint.
@@ -87,7 +87,7 @@ The pattern produces **two complementary outputs** from the same documents:
 | <img src="./docs/assets/icons/ai-search.svg" width="20" alt=""> **Knowledge base + MCP endpoint** | *"Where in 2,000 pages is X?"* — cited passages, including text recovered from figures | Azure AI Search | [06](./docs/06-mcp-endpoint-and-fallback-server.md), [07](./docs/07-github-copilot-mcp-client-setup.md) |
 | <img src="./docs/assets/icons/folder.svg" width="20" alt=""> **Repository export** | *"Show me section 3 with its diagrams"* — the document itself, page-cited, versioned with the code | Git | [10](./docs/10-repo-corpus-export.md) |
 
-And a scripted, self-checking customer demo ([docs/11](./docs/11-customer-walkthrough.md)) that proves both the prose path and the figure path before you present.
+And a scripted, self-checking demo walkthrough ([docs/11](./docs/11-demo-walkthrough.md)) that proves both the prose path and the figure path before you present.
 
 > [!NOTE]
 > **Diagrams.** Every diagram in these docs is a PNG exported from a `.drawio` source that sits next to it in `docs/assets/` — the PNG renders everywhere (GitHub, Azure DevOps, VS Code, email, slides); the `.drawio` is what you edit. `python scripts/export_diagrams.py docs/assets --check` fails if a PNG is older than its source.
@@ -127,7 +127,7 @@ And a scripted, self-checking customer demo ([docs/11](./docs/11-customer-walkth
 
 ## Locked design decisions
 
-These decisions are **the v1 baseline**. Deviate only with an explicit decision record and updated guidance.
+These decisions are **the v1 baseline**. Deviate only with an explicit architecture decision record (ADR) and updated guidance.
 
 | # | Decision | Choice | Why | Status |
 |---|---|---|---|---|
@@ -139,10 +139,10 @@ These decisions are **the v1 baseline**. Deviate only with an explicit decision 
 | 6 | <img src="./docs/assets/icons/container-apps.svg" width="20" alt=""> MCP exposure — optional wrapper | Thin **custom MCP server** (Python `mcp` SDK), deployable to Azure Container Apps or run locally over stdio | Defense-in-depth: bearer-token lifecycle management, custom pre/post-processing, or IP allowlisting beyond what the native endpoint offers on its own — not required to get a working demo | <img src="./docs/assets/badges/optional.svg" alt="Optional"> |
 | 7 | <img src="./docs/assets/icons/code.svg" width="20" alt=""> Consumption | GitHub Copilot in VS Code via workspace `.vscode/mcp.json` (agent mode) | Matches the target scenario directly — developers stay in their editor, no separate chat surface | <img src="./docs/assets/badges/default.svg" alt="Default"> |
 | 8 | <img src="./docs/assets/icons/keys.svg" width="20" alt=""> Auth (v1) | API key (Search admin/query key) | Fastest path to a working demo; Microsoft's recommended production path is an Entra ID bearer token (`https://search.azure.com/.default` scope) + **Search Index Data Reader** RBAC — documented in [01-architecture.md](./docs/01-architecture.md#trust-boundaries-and-security) | <img src="./docs/assets/badges/default.svg" alt="Default"> |
-| 9 | <img src="./docs/assets/icons/azure-devops.svg" width="20" alt=""> Deployment | **`azd up`** (Azure Developer CLI: `infra/azd.bicep` → the shared `main.bicep`, with pre/postprovision hooks) as the one-command default; `infra/deploy.ps1` for an existing resource group; a fully manual Azure Portal + imperative CLI path ([docs/03b-manual-deployment.md](./docs/03b-manual-deployment.md)). All three deploy the same `main.bicep` resources — Storage, a Foundry multi-service account with four model deployments, AI Search, Key Vault, optional Container App | One command for a demo, without losing the script and no-IaC paths customers need. Every setting is an azd environment variable ([docs/12](./docs/12-configuration-reference.md)) | <img src="./docs/assets/badges/default.svg" alt="Default"> <img src="./docs/assets/badges/static-only.svg" alt="Static-only"> |
+| 9 | <img src="./docs/assets/icons/azure-devops.svg" width="20" alt=""> Deployment | **`azd up`** (Azure Developer CLI: `infra/azd.bicep` → the shared `main.bicep`, with pre/postprovision hooks) as the one-command default; `infra/deploy.ps1` for an existing resource group; a fully manual Azure Portal + imperative CLI path ([docs/03b-manual-deployment.md](./docs/03b-manual-deployment.md)). All three deploy the same `main.bicep` resources — Storage, a Foundry multi-service account with four model deployments, AI Search, Key Vault, optional Container App | One command for a demo, without losing the script and no-IaC paths some environments need. Every setting is an azd environment variable ([docs/12](./docs/12-configuration-reference.md)) | <img src="./docs/assets/badges/default.svg" alt="Default"> <img src="./docs/assets/badges/static-only.svg" alt="Static-only"> |
 
 > [!IMPORTANT]
-> Decisions 4 and 5 sit on **Public preview** surface (Search API `2026-05-01-preview`), and Tier CU semantic chunking is preview too — see the [preview-status table](./docs/08-extraction-tier-comparison.md#verify-before-you-quote). A customer that cannot accept preview components runs the GA Tier DI+ path for the whole corpus.
+> Decisions 4 and 5 sit on **Public preview** surface (Search API `2026-05-01-preview`), and Tier CU semantic chunking is preview too — see the [preview-status table](./docs/08-extraction-tier-comparison.md#verify-before-you-quote). A team that cannot accept preview components runs the GA Tier DI+ path for the whole corpus.
 
 See [01-architecture.md](./docs/01-architecture.md) for the full design narrative and trust boundaries.
 
@@ -164,18 +164,18 @@ All narrative documentation lives under `docs/`, in build order. The repo root h
 | docs/05-troubleshooting.md | Symptom-by-symptom diagnosis |
 | docs/06-mcp-endpoint-and-fallback-server.md | Deep dive: native Knowledge Base MCP endpoint + the optional custom wrapper |
 | docs/07-github-copilot-mcp-client-setup.md | Deep dive: wiring VS Code / GitHub Copilot to the MCP endpoint |
-| **docs/08-extraction-tier-comparison.md** | **The "why both services" doc** — DI-only vs CU-only vs hybrid, measured; the 300-page limit; figure verbalization; model selection; and the **cost model**. Read this before quoting a customer. |
+| **docs/08-extraction-tier-comparison.md** | **The "why both services" doc** — DI-only vs CU-only vs hybrid, measured; the 300-page limit; figure verbalization; model selection; and the **cost model**. Read this before you commit to a tier or a cost estimate. |
 | **docs/09-findings-and-lessons.md** | **Every defect, constraint and gotcha** from two clean-room rebuilds, organised by symptom — including the errors whose messages point at the wrong cause, and corrections to guidance that proved wrong |
 | **docs/10-repo-corpus-export.md** | **PDF → repository package**: page-cited Markdown sections, original figure images, Mermaid, and opt-in register/pin/electrical extraction. Index vs. export vs. both, compared |
 | **docs/12-configuration-reference.md** | **Every configurable value** — azd environment variables, hook knobs, `deploy.ps1` parameters, `demo-ids.local.json` keys, runtime environment variables — with defaults and consumers |
-| **docs/11-customer-walkthrough.md** | **Scripted customer demo** with expected citations and pass/fail — rehearse with it, present with `--present` |
-| docs/assets/*.drawio + *.png | Diagram sources and their exported PNGs (seventeen): reference architecture, deployed topology, `azd up` flow, configuration flow, hybrid routing, repository export pipeline, repository package layout, customer walkthrough, service catalog, prerequisites map, manual deployment steps, testing matrix, troubleshooting decision tree, MCP endpoint vs wrapper, Copilot MCP client flow, extraction tier comparison, numbers that matter. Embed the PNG; edit the `.drawio` |
+| **docs/11-demo-walkthrough.md** | **Scripted demo walkthrough** with expected citations and pass/fail — rehearse with it, present with `--present` |
+| docs/assets/*.drawio + *.png | Diagram sources and their exported PNGs (seventeen): reference architecture, deployed topology, `azd up` flow, configuration flow, hybrid routing, repository export pipeline, repository package layout, demo walkthrough, service catalog, prerequisites map, manual deployment steps, testing matrix, troubleshooting decision tree, MCP endpoint vs wrapper, Copilot MCP client flow, extraction tier comparison, numbers that matter. Embed the PNG; edit the `.drawio` |
 | azure.yaml | Azure Developer CLI template — `azd up` |
 | infra/ | Bicep IaC: `main.bicep` (shared by every path), `azd.bicep` + `azd.parameters.json` (azd entry point), `modules/`, `deploy.ps1`, and `hooks/` (azd pre/postprovision + helpers shared with `deploy.ps1`) |
 | scripts/hybrid_ingest.py | **The production path** — page-count router, both ingestion tiers, unified index, knowledge base |
 | scripts/compare_extraction_tiers.py | Re-runnable A/B harness — audits chunk quality and retrieval per tier, emits a scorecard to `out/` |
 | scripts/export_repo_corpus.py | PDF → repository-committable corpus (analyze once, export offline) |
-| scripts/demo_walkthrough.py | Scripted customer walkthrough with expected citations; `--present` for the talk track |
+| scripts/demo_walkthrough.py | Scripted demo walkthrough with expected citations; `--present` for the presenter script |
 | scripts/export_diagrams.py | Re-exports every `docs/assets/*.drawio` to PNG via the draw.io desktop CLI; `--check` flags stale PNGs |
 | scripts/lint_doc_visuals.py + tests/test_doc_visuals.py | Visual-richness lint for README + docs (hero icons, badges, callouts, diagrams, icon tables, links, footer); `--strict` before publishing |
 | docs/assets/icons/ · docs/assets/badges/ | Official Microsoft product icons (V24, with attribution README) and local SVG status badges used by the docs. No network calls |
@@ -263,21 +263,21 @@ Full detail in [02-prerequisites.md](./docs/02-prerequisites.md):
 | Developers need grounded, citable answers while coding, in VS Code / GitHub Copilot | ✅ | This pattern |
 | Any MCP-compatible client (GitHub Copilot, Claude Desktop, other MCP-aware IDEs) | ✅ | This pattern |
 | Lowest-code path to a working retrieval endpoint | ✅ | This pattern |
-| Teams, M365 Copilot, or a business-user chatbot | ❌ | [`rag-knowledge-base-pattern`](../rag-knowledge-base-pattern/README.md) |
-| Corpus in Fabric/OneLake needing Fabric-native governance (RLS/OLS, Purview) | ❌ | [`rag-knowledge-base-pattern`](../rag-knowledge-base-pattern/README.md) |
+| Teams, M365 Copilot, or a business-user chatbot | ❌ | [Document Q&A knowledge agent](https://github.com/chmald/document-qa-knowledge-agent) |
+| Corpus in Fabric/OneLake needing Fabric-native governance (RLS/OLS, Purview) | ❌ | [Document Q&A knowledge agent](https://github.com/chmald/document-qa-knowledge-agent) |
 | Custom chat UI with multi-turn memory beyond an MCP tool call | ⚠️ | Extend the wrapper, or a dedicated agent-runtime pattern |
 
 ### Use this pattern when
 
 - Developers need grounded, citable answers from technical documentation **while coding** — inside VS Code / GitHub Copilot, not a separate chat surface
 - The consumption target is any **MCP-compatible client** (GitHub Copilot, Claude Desktop, other MCP-aware IDEs) rather than Teams/M365 Copilot
-- The customer wants the lowest-code path to a working retrieval endpoint — no chat-agent runtime to author or maintain
+- You want the lowest-code path to a working retrieval endpoint — no chat-agent runtime to author or maintain
 
 ### Use a different pattern when
 
-- The target surface is Teams, M365 Copilot, or a business-user chatbot → use [`rag-knowledge-base-pattern`](../rag-knowledge-base-pattern/README.md) (Copilot Studio or Foundry Agent Service front end)
-- The corpus lives in Fabric/OneLake and needs Fabric-native governance (RLS/OLS, Purview) → also [`rag-knowledge-base-pattern`](../rag-knowledge-base-pattern/README.md)
-- The customer specifically needs a custom chat UI with multi-turn memory beyond what an MCP tool call provides → the fallback MCP server here can be extended, but consider a dedicated agent-runtime pattern instead
+- The target surface is Teams, M365 Copilot, or a business-user chatbot → use [Document Q&A knowledge agent](https://github.com/chmald/document-qa-knowledge-agent) (Copilot Studio or Foundry Agent Service front end)
+- The corpus lives in Fabric/OneLake and needs Fabric-native governance (RLS/OLS, Purview) → also [Document Q&A knowledge agent](https://github.com/chmald/document-qa-knowledge-agent)
+- You specifically need a custom chat UI with multi-turn memory beyond what an MCP tool call provides → the fallback MCP server here can be extended, but consider a dedicated agent-runtime pattern instead
 
 ---
 
@@ -289,9 +289,9 @@ Full detail in [02-prerequisites.md](./docs/02-prerequisites.md):
 | <img src="./docs/assets/icons/container-apps.svg" width="20" alt=""> | Custom MCP server wrapper | <img src="./docs/assets/badges/optional.svg" alt="Optional"> | [docs/06](./docs/06-mcp-endpoint-and-fallback-server.md) |
 
 > [!WARNING]
-> Azure AI Search's agentic-retrieval surface has moved quickly (it was renamed from "Knowledge Agents" to "Knowledge Bases" in 2026). **Always re-verify the exact API version, endpoint path, and auth model** against the current Azure AI Search REST API reference before a customer-facing build.
+> Azure AI Search's agentic-retrieval surface has moved quickly (it was renamed from "Knowledge Agents" to "Knowledge Bases" in 2026). **Always re-verify the exact API version, endpoint path, and auth model** against the current Azure AI Search REST API reference before a production build.
 
-Azure AI Search's Knowledge Base MCP endpoint (`/knowledgebases/{name}/mcp`, exposing a `knowledge_base_retrieve` tool) is a **real, documented Azure AI Search capability** — not a speculative preview feature. This pattern's earlier revision guessed at an incorrect URL shape and API version; both have been corrected against current Microsoft Learn documentation (see [02-prerequisites.md](./docs/02-prerequisites.md#8--regional--preview-feature-availability) and [docs/06-mcp-endpoint-and-fallback-server.md](./docs/06-mcp-endpoint-and-fallback-server.md)). Because Azure AI Search's agentic-retrieval surface has moved quickly (it was renamed from "Knowledge Agents" to "Knowledge Bases" in 2026), **always re-verify the exact API version, endpoint path, and auth model against the current Azure AI Search REST API reference before a customer-facing build** — the CLI/REST calls to check current availability are in the linked docs. The optional custom MCP server wrapper is not required to get a working demo; it exists for defense-in-depth (token lifecycle, custom processing, network controls).
+Azure AI Search's Knowledge Base MCP endpoint (`/knowledgebases/{name}/mcp`, exposing a `knowledge_base_retrieve` tool) is a **real, documented Azure AI Search capability** — not a speculative preview feature. This pattern's earlier revision guessed at an incorrect URL shape and API version; both have been corrected against current Microsoft Learn documentation (see [02-prerequisites.md](./docs/02-prerequisites.md#8--regional--preview-feature-availability) and [docs/06-mcp-endpoint-and-fallback-server.md](./docs/06-mcp-endpoint-and-fallback-server.md)). Because Azure AI Search's agentic-retrieval surface has moved quickly (it was renamed from "Knowledge Agents" to "Knowledge Bases" in 2026), **always re-verify the exact API version, endpoint path, and auth model against the current Azure AI Search REST API reference before a production build** — the CLI/REST calls to check current availability are in the linked docs. The optional custom MCP server wrapper is not required to get a working demo; it exists for defense-in-depth (token lifecycle, custom processing, network controls).
 
 ---
 
@@ -302,7 +302,7 @@ Azure AI Search's Knowledge Base MCP endpoint (`/knowledgebases/{name}/mcp`, exp
 | <img src="./docs/assets/icons/container-apps.svg" width="20" alt=""> | `scripts/mcp_fallback_server.py` (the optional wrapper) | You need more than the native endpoint offers | <img src="./docs/assets/badges/optional.svg" alt="Optional"> |
 | <img src="./docs/assets/icons/commit.svg" width="20" alt=""> | A dedicated fork of `scripts/mcp_fallback_server.py` | Multiple tools, write-back, or multi-index federation | <img src="./docs/assets/badges/diy.svg" alt="DIY"> |
 
-There is no separate pro-code companion repo for this pattern today — the optional MCP server wrapper (`scripts/mcp_fallback_server.py`) already is the pro-code path when you need more than the native endpoint offers. If a customer engagement needs a richer custom MCP server (multiple tools, write-back, multi-index federation), fork `scripts/mcp_fallback_server.py` into a dedicated repo rather than growing it in place here.
+There is no separate pro-code companion repo for this pattern today — the optional MCP server wrapper (`scripts/mcp_fallback_server.py`) already is the pro-code path when you need more than the native endpoint offers. If your scenario needs a richer custom MCP server (multiple tools, write-back, multi-index federation), fork `scripts/mcp_fallback_server.py` into a dedicated repo rather than growing it in place here.
 
 ---
 

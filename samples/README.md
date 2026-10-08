@@ -7,7 +7,7 @@ This pattern needs a corpus of source documents to demonstrate against. No sampl
 ## Bring your own corpus
 
 - Use your own documentation, provided you have the right to store and index it in Azure resources you control
-- **Do not** commit copyrighted vendor manuals (e.g., chip vendor datasheets) into this repository or a shared demo environment without confirming redistribution rights — most vendor datasheets are freely distributable for reference use, but check the vendor's terms before including one in a customer-facing or shared repo. `.gitignore` excludes `samples/*.pdf` and `tests/fixtures/*.pdf` so this is default-safe.
+- **Do not** commit copyrighted vendor manuals (e.g., chip vendor datasheets) into this repository or a shared demo environment without confirming redistribution rights — most vendor datasheets are freely distributable for reference use, but check the vendor's terms before including one in a public or shared repo. `.gitignore` excludes `samples/*.pdf` and `tests/fixtures/*.pdf` so this is default-safe.
 - A single 50-200 page document is enough to demonstrate the pattern end-to-end; a handful of documents is enough to demonstrate cross-document retrieval
 
 ## Supported file types

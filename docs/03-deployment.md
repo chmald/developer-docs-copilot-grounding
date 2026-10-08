@@ -26,7 +26,7 @@ Step-by-step build of the Developer Docs MCP Knowledge Base pattern via Bicep/Ia
 | <img src="./assets/icons/container-apps.svg" width="24" alt=""/> | **Custom wrapper** | Phase 4, optional ![Optional](./assets/badges/optional.svg) |
 
 > [!TIP]
-> **Don't want to use Bicep?** See [03b-manual-deployment.md](./03b-manual-deployment.md) for a complete Azure Portal + imperative CLI alternative that produces the same resources — useful when a customer's environment doesn't allow IaC deployments.
+> **Don't want to use Bicep?** See [03b-manual-deployment.md](./03b-manual-deployment.md) for a complete Azure Portal + imperative CLI alternative that produces the same resources — useful when your environment doesn't allow IaC deployments.
 
 > [!TIP]
 > **Fastest path: `azd up`.** One command provisions everything in Phases 1–2 (resource group,
@@ -264,7 +264,7 @@ output is also the input to a cost estimate — see
 [08 § Cost model](./08-extraction-tier-comparison.md#cost-model).
 
 See [samples/README.md](../samples/README.md) if you don't have a corpus ready — do **not** use
-copyrighted vendor manuals in a shared or customer-facing demo without checking redistribution
+copyrighted vendor manuals in a shared or public demo without checking redistribution
 rights.
 
 ### 2.3 Upload into the tier prefixes

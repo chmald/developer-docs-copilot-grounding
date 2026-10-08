@@ -54,7 +54,7 @@ Either the native Knowledge Base MCP endpoint (validated in [docs/06 § 3](06-mc
 
 ## <img src="./assets/icons/gear.svg" width="28" alt=""/> 2 — Workspace `.vscode/mcp.json`
 
-VS Code discovers MCP servers from a workspace-level `.vscode/mcp.json` (shared with the team when committed to the project repo) or a user-level MCP config (personal, not shared). For a customer-deployable demo, **commit the workspace file** so every developer on the project gets the connection automatically when they open the repo.
+VS Code discovers MCP servers from a workspace-level `.vscode/mcp.json` (shared with the team when committed to the project repo) or a user-level MCP config (personal, not shared). For a team-deployable demo, **commit the workspace file** so every developer on the project gets the connection automatically when they open the repo.
 
 > [!IMPORTANT]
 > **Portability note.** When VS Code's Agent Host mode is enabled, `.vscode/mcp.json` entries that use `${input:...}` prompted secrets aren't forwarded to the Agent Host the same way as static config. If your team relies on Agent Host and hits connection issues with the `inputs`-based options below, use a portable `.mcp.json` at the repo root (not under `.vscode/`) or a user-level `~/.copilot/mcp-config.json` instead — the server entry shape is the same either way.
@@ -137,7 +137,7 @@ VS Code discovers MCP servers from a workspace-level `.vscode/mcp.json` (shared 
 </details>
 
 > [!WARNING]
-> Entra ID bearer tokens expire (roughly an hour), so re-prompting is more frequent than Option A's API key — acceptable for a demo, but flag to the customer that a service-principal / `DefaultAzureCredential`-based client (or the custom wrapper server, which can refresh tokens server-side) is the more durable choice for daily developer use.
+> Entra ID bearer tokens expire (roughly an hour), so re-prompting is more frequent than Option A's API key — acceptable for a demo, but note for your team that a service-principal / `DefaultAzureCredential`-based client (or the custom wrapper server, which can refresh tokens server-side) is the more durable choice for daily developer use.
 
 ### Option B — optional custom wrapper Container App
 
@@ -220,7 +220,7 @@ Copilot recognizes the connected MCP tool as relevant to the question, calls it,
 
 | Step | | Action | Gate |
 |---|---|---|---|
-| 1 | <img src="./assets/icons/commit.svg" width="24" alt=""/> | Commit `.vscode/mcp.json` to the customer's repository so every developer gets the connection when they clone/open the project — this is the "customer-ready, easily deployable" part of the ask: one file, no separate portal step per developer | ☐ File committed |
+| 1 | <img src="./assets/icons/commit.svg" width="24" alt=""/> | Commit `.vscode/mcp.json` to the project repository so every developer gets the connection when they clone/open the project — this is what makes the setup easy to roll out: one file, no separate portal step per developer | ☐ File committed |
 | 2 | <img src="./assets/icons/keys.svg" width="24" alt=""/> | Use the `inputs` prompt pattern (Option A or A2) so no team member needs to know or share a hardcoded secret; VS Code's secret storage keeps each developer's entered credential local to their machine | ☐ No hardcoded secrets |
 | 3 | <img src="./assets/icons/gear.svg" width="24" alt=""/> | If the corpus or endpoint changes (e.g., switching from the custom wrapper to the native endpoint once it's confirmed available), update the committed `.vscode/mcp.json` once — every developer picks up the change on next pull | ☐ Change pulled by team |
 

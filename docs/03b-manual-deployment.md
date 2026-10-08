@@ -13,7 +13,7 @@
 
 ![version](./assets/badges/version.svg) ![Manual path](./assets/badges/manual-path.svg) ![DIY](./assets/badges/diy.svg) ![Optional](./assets/badges/optional.svg)
 
-A complete alternative to [03-deployment.md](./03-deployment.md) for customers who can't or don't want to run Bicep/IaC. Every resource below is created with imperative `az` CLI commands (with the Azure Portal equivalent noted per step) and produces the **same** resource shapes, names, and RBAC assignments as `infra/main.bicep` — so Phases 2, 3, and 5 (which are already infrastructure-agnostic; they call the same Python scripts against whatever Search/Foundry resources exist) are **not duplicated here** — this doc only replaces Phase 1 (foundation resources) and Phase 4 (optional custom wrapper server) with a Bicep-free equivalent.
+A complete alternative to [03-deployment.md](./03-deployment.md) for teams who can't or don't want to run Bicep/IaC. Every resource below is created with imperative `az` CLI commands (with the Azure Portal equivalent noted per step) and produces the **same** resource shapes, names, and RBAC assignments as `infra/main.bicep` — so Phases 2, 3, and 5 (which are already infrastructure-agnostic; they call the same Python scripts against whatever Search/Foundry resources exist) are **not duplicated here** — this doc only replaces Phase 1 (foundation resources) and Phase 4 (optional custom wrapper server) with a Bicep-free equivalent.
 
 ## At a glance
 
@@ -25,7 +25,7 @@ A complete alternative to [03-deployment.md](./03-deployment.md) for customers w
 | <img src="./assets/icons/cost-management.svg" width="24" alt=""/> | **Trade-off** | About 3.5-4.5 hours hands-on — roughly 30-45 minutes longer than the Bicep path |
 
 > [!NOTE]
-> **When to use this instead of `03-deployment.md`:** the customer's environment doesn't allow Bicep/ARM template deployments, the operator doesn't have Bicep CLI tooling available, or you want to demonstrate each resource being created individually (useful for a workshop/teaching context). Otherwise, `03-deployment.md`'s Bicep path is faster and less error-prone — use this doc as the exception, not the default.
+> **When to use this instead of `03-deployment.md`:** your environment doesn't allow Bicep/ARM template deployments, the operator doesn't have Bicep CLI tooling available, or you want to demonstrate each resource being created individually (useful for a workshop/teaching context). Otherwise, `03-deployment.md`'s Bicep path is faster and less error-prone — use this doc as the exception, not the default.
 
 > [!TIP]
 > **If IaC *is* allowed,** `azd up` is the fastest path: one command, same resources and names. See [03 § Fast path — azd up](./03-deployment.md#fast-path--azd-up).
@@ -168,7 +168,7 @@ az rest --method PATCH --uri "https://management.azure.com/subscriptions/$(az ac
 
 **Portal equivalent:** Azure AI Search → + Create → **Basic** tier (POC scale; use Standard S1+ for production) → after creation, Settings → Semantic ranker → Enable "Standard" plan.
 
-> **Tier note:** Basic is sufficient for semantic ranker and Knowledge Bases at demo/POC scale. Use Standard (S1) or higher for production/customer-facing workloads (replica/partition scale, concurrency headroom) — see [02-prerequisites.md § 3](./02-prerequisites.md).
+> **Tier note:** Basic is sufficient for semantic ranker and Knowledge Bases at demo/POC scale. Use Standard (S1) or higher for production workloads (replica/partition scale, concurrency headroom) — see [02-prerequisites.md § 3](./02-prerequisites.md).
 
 ### 1.4 Key Vault
 

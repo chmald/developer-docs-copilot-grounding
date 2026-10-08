@@ -77,7 +77,7 @@ Content-Type: application/json
 The endpoint speaks MCP's standard lifecycle (`initialize`, `tools/list`, `tools/call`) and exposes a single tool that performs agentic retrieval against the configured index(es), returning grounded text with per-chunk citations.
 
 > [!IMPORTANT]
-> **This is a real, documented Azure AI Search capability** — Microsoft Learn states: *"each knowledge base is a standalone MCP server that exposes the `knowledge_base_retrieve` tool. Any MCP-compatible client, including Foundry Agent Service, GitHub Copilot, Claude, and Cursor, can invoke this tool."* The exact API version and regional rollout still move quickly (agentic retrieval was renamed from "Knowledge Agents" to "Knowledge Bases" in 2026), so always re-verify against the current Azure AI Search REST API reference before a customer-facing build — but do not treat the endpoint itself as speculative.
+> **This is a real, documented Azure AI Search capability** — Microsoft Learn states: *"each knowledge base is a standalone MCP server that exposes the `knowledge_base_retrieve` tool. Any MCP-compatible client, including Foundry Agent Service, GitHub Copilot, Claude, and Cursor, can invoke this tool."* The exact API version and regional rollout still move quickly (agentic retrieval was renamed from "Knowledge Agents" to "Knowledge Bases" in 2026), so always re-verify against the current Azure AI Search REST API reference before a production build — but do not treat the endpoint itself as speculative.
 
 ## <img src="./assets/icons/monitor.svg" width="28" alt=""/> 3 — Checking availability
 

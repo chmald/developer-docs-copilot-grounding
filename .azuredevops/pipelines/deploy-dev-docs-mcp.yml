@@ -3,7 +3,7 @@
 # Minimal validate + deploy skeleton. NOTE: the Deploy stage assumes
 # demo-ids.local.json is available to the agent (materialized from a prior
 # infra/deploy.ps1 run, or reconstructed from the variable group in a fuller
-# CI/CD setup) -- for a first customer build, run infra/deploy.ps1 manually
+# CI/CD setup) -- for a first build, run infra/deploy.ps1 manually
 # and commit the pipeline as the validate-on-PR gate before wiring full
 # unattended deploys.
 

@@ -47,7 +47,7 @@ earning their place**. Run these after [03-deployment.md](./03-deployment.md). T
 | <img src="./assets/icons/ai-search.svg" width="20" alt=""/> | B | **Chunk quality** | Is what landed in the index actually usable? | ✅ `compare_extraction_tiers.py --audit` | ![Live-tested](./assets/badges/live-tested.svg) |
 | <img src="./assets/icons/foundry-models.svg" width="20" alt=""/> | C | Quality (golden set) | Does retrieval return the right source? | ✅ `compare_extraction_tiers.py --golden` | ![Live-tested](./assets/badges/live-tested.svg) |
 | <img src="./assets/icons/blob-block.svg" width="20" alt=""/> | D | **Tier provenance** | Are both tiers contributing? | ✅ facet query | ![Live-tested](./assets/badges/live-tested.svg) |
-| <img src="./assets/icons/powershell.svg" width="20" alt=""/> | E | End-to-end demo script | Does the story land in front of a customer? | ✅ `demo_walkthrough.py` | ![Static only](./assets/badges/static-only.svg) |
+| <img src="./assets/icons/powershell.svg" width="20" alt=""/> | E | End-to-end demo script | Does the story land with an audience? | ✅ `demo_walkthrough.py` | ![Static only](./assets/badges/static-only.svg) |
 | <img src="./assets/icons/code.svg" width="20" alt=""/> | F | Regression checklist | Did a change break anything? | ✅ `pytest` | ![Static only](./assets/badges/static-only.svg) |
 
 > [!NOTE]
@@ -157,7 +157,7 @@ python compare_extraction_tiers.py --ids-file ../demo-ids.local.json --report
 
 ## E — End-to-end demo script
 
-Scripted and self-checking — see [11-customer-walkthrough.md](./11-customer-walkthrough.md):
+Scripted and self-checking — see [11-demo-walkthrough.md](./11-demo-walkthrough.md):
 
 ```bash
 python demo_walkthrough.py --ids-file ../demo-ids.local.json --script ../samples/walkthrough.example.json --report
@@ -169,7 +169,7 @@ The steps it runs, and what to say at each:
    pick a service; we route per document, and the decision is free."*
 2. In VS Code agent mode, ask a prose question → grounded answer with a citation.
 3. Ask the **figure-only** question → the answer comes from a diagram the baseline pipeline
-   would have discarded. *This is the moment the pattern sells itself.*
+   would have discarded. *This is the step that proves the whole pattern works.*
 4. Show the `extractionTier` facet → both services contributed to one seamless corpus.
 5. Ask an out-of-corpus question → honest "no relevant content", not a hallucination.
 6. *(Optional)* Open the repository export ([docs/10](./10-repo-corpus-export.md)) → the same
@@ -214,7 +214,7 @@ methodology guards, and model-configuration guards.
 | Added or changed corpus documents | A (routing), B, C, D |
 | Changed a model deployment | B (figure quality), C, F |
 | Upgraded the Search API version | A, D, F |
-| Before any customer demo | E, plus a smoke pass of A |
+| Before any live demo | E, plus a smoke pass of A |
 
 ---
 
@@ -233,7 +233,7 @@ What has actually been run, and where. Nothing on this page claims more than the
 | Scripted walkthrough (`demo_walkthrough.py`) | ✅ `test_demo_walkthrough.py` | ⏳ Not run against Azure | ![Static only](./assets/badges/static-only.svg) |
 
 > [!CAUTION]
-> Don't present `azd up`, the repository export or the scripted walkthrough as live-tested. They were validated offline only. Run them against your own subscription — and record the result — before quoting them to a customer.
+> Don't present `azd up`, the repository export or the scripted walkthrough as live-tested. They were validated offline only. Run them against your own subscription — and record the result — before you describe them as live-tested.
 
 ---
 

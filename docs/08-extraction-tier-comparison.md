@@ -13,7 +13,7 @@
 
 ![GA](./assets/badges/ga.svg) ![Public preview](./assets/badges/public-preview.svg) ![Live-tested](./assets/badges/live-tested.svg) ![Default](./assets/badges/default.svg) ![version](./assets/badges/version.svg)
 
-This is the decision guide for *which extraction tier this pattern should use*: Document Intelligence Layout, Content Understanding, or both behind one router. It is for the architect or SE who has to defend the choice to a customer, and it answers three questions: which tier gives better chunks, what each costs, and which parts are still preview. It is backed by a comparison you can re-run against your own corpus with [`scripts/compare_extraction_tiers.py`](../scripts/compare_extraction_tiers.py) — the numbers below came from that harness, not from a slide.
+This is the decision guide for *which extraction tier this pattern should use*: Document Intelligence Layout, Content Understanding, or both behind one router. It is for the architect or engineer who has to justify the choice to stakeholders, and it answers three questions: which tier gives better chunks, what each costs, and which parts are still preview. It is backed by a comparison you can re-run against your own corpus with [`scripts/compare_extraction_tiers.py`](../scripts/compare_extraction_tiers.py) — the numbers below came from that harness, not from a slide.
 
 > [!TIP]
 > **Short answer for a technical-manual corpus:** don't pick one — **route per document**.
@@ -76,7 +76,7 @@ would have, because Content Understanding rejected the largest document outright
 
 ## One service, or both? The decision in one table
 
-This is the question a customer actually asks. It is answered here with measurements from a
+This is the question stakeholders actually ask. It is answered here with measurements from a
 real corpus — **2 documents, 1,025 pages** (a 119-page debug specification and a 906-page ISA
 specification), which is a realistic shape for hardware/firmware documentation.
 
@@ -154,7 +154,7 @@ from a **figure**, inside a **906-page document Content Understanding rejects ou
 > pay the cheaper service's price on the majority of your corpus."*
 
 The honest caveat to state alongside it: **the tier mix, and therefore the cost, depends
-entirely on the customer's page-count distribution.** Run `--plan` against their real corpus
+entirely on your corpus's page-count distribution.** Run `--plan` against your real corpus
 before quoting — it takes seconds and calls no service.
 
 ---
@@ -551,7 +551,7 @@ bills from document 1.**
    configure.** Microsoft's rule: *digital* documents (DOCX, XLSX, HTML, clean digital PDF)
    bill **Minimal ($0.01/1,000 pages)**; *image-based* documents needing layout analysis bill
    **Standard ($5.00/1,000 pages)** — a **500×** spread. Semantic chunking requires layout
-   analysis, so scanned corpora land on Standard. **Ask whether the customer's corpus is
+   analysis, so scanned corpora land on Standard. **Check whether your corpus is
    scanned or born-digital before putting a number on a slide**, and model a blend if it's
    mixed.
 2. **Figure verbalization is billed twice, on two different meters.** The Content
@@ -580,7 +580,7 @@ verbalized. One-time ingestion cost:
 > vision docs (`170 + 85` tokens) is tied to the legacy GPT-4 Turbo model and its own deep
 > link is stale. The range above is derived from *measured* output/reasoning tokens
 > (340–495 reasoning + ~70–300 content tokens per call) plus an assumed 1,000–2,000 input
-> tokens per image. **Measure it on the customer's own corpus before quoting.**
+> tokens per image. **Measure it on your own corpus before budgeting.**
 
 ### Read this before you position hybrid as "cheaper"
 
@@ -600,7 +600,7 @@ mix is the whole cost story — which is why `--plan` exists and why it calls no
 python hybrid_ingest.py --ids-file ../demo-ids.local.json --plan --source-dir <corpus>
 ```
 
-Run that against the customer's real corpus, count pages per tier, and multiply. Anything else
+Run that against your real corpus, count pages per tier, and multiply. Anything else
 is a guess.
 
 ### Monthly running cost
@@ -714,7 +714,7 @@ Measured effect of the switch: CU-tier figure rows went from **0 → 78** on the
 ## Verify before you quote
 
 > [!WARNING]
-> **Preview status — state this plainly to a customer.** The two capabilities this pattern
+> **Preview status — state this plainly to stakeholders.** The two capabilities this pattern
 > leans on hardest are preview. Do not quote them as GA, and do not promise an SLA for the
 > Content Understanding service until its status is confirmed.
 
@@ -723,11 +723,11 @@ Measured effect of the switch: CU-tier figure rows went from **0 → 78** on the
 | <img src="./assets/icons/foundry.svg" width="20" alt=""/> | `chunkingProperties.method: "semantic"` (AI Search CU skill) | ![Public preview](./assets/badges/public-preview.svg) `2026-05-01-preview` API |
 | <img src="./assets/icons/foundry.svg" width="20" alt=""/> | `modelName` / `modelDeployment` figure descriptions (AI Search CU skill) | ![Public preview](./assets/badges/public-preview.svg) same API version |
 | <img src="./assets/icons/foundry.svg" width="20" alt=""/> | `ContentUnderstandingSkill` itself | ![GA](./assets/badges/ga.svg) in Search REST API `2026-04-01` |
-| <img src="./assets/icons/foundry.svg" width="20" alt=""/> | Content Understanding service | ⏳ **Unresolved in Microsoft's own docs** — the pricing page FAQ says "public preview… does not have an SLA", while the pricing-explainer describes GA behavior for API `2025-11-01`. Confirm current status before committing a customer to an SLA. |
-| <img src="./assets/icons/ai-search.svg" width="20" alt=""/> | Azure AI Search **Knowledge Base** + native MCP endpoint | ![Public preview](./assets/badges/public-preview.svg) `2026-05-01-preview` API — a real, documented capability; the agentic-retrieval surface has moved quickly (renamed from "Knowledge Agents" in 2026) — re-verify the API version before a customer build |
+| <img src="./assets/icons/foundry.svg" width="20" alt=""/> | Content Understanding service | ⏳ **Unresolved in Microsoft's own docs** — the pricing page FAQ says "public preview… does not have an SLA", while the pricing-explainer describes GA behavior for API `2025-11-01`. Confirm current status before committing to an SLA. |
+| <img src="./assets/icons/ai-search.svg" width="20" alt=""/> | Azure AI Search **Knowledge Base** + native MCP endpoint | ![Public preview](./assets/badges/public-preview.svg) `2026-05-01-preview` API — a real, documented capability; the agentic-retrieval surface has moved quickly (renamed from "Knowledge Agents" in 2026) — re-verify the API version before a production build |
 
 The Tier DI+ path (`DocumentIntelligenceLayoutSkill` + `ChatCompletionSkill`) is ![GA](./assets/badges/ga.svg) on
-both skills, which is worth noting: if a customer cannot accept preview components, the hybrid
+both skills, which is worth noting: if your organization cannot accept preview components, the hybrid
 degrades to the DI+ tier for the whole corpus — losing chunk quality and cost efficiency, but
 **not** losing figure comprehension, because the vision skill is GA.
 
@@ -752,7 +752,7 @@ Capability references:
 There is **no** Microsoft-published reference architecture specific to technical-manual or
 datasheet RAG — confirmed absent at time of writing, not merely unfound. Treat this document
 as filling that gap for this pattern, and re-verify the underlying service behaviour before
-committing a customer to it.
+committing to it in production.
 
 ---
 

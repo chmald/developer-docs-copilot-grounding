@@ -126,7 +126,7 @@ az provider register --namespace Microsoft.ContainerRegistry
 | Semantic ranker | <img src="./assets/icons/gear.svg" width="24" alt=""/> | Enabled per service | ![GA](./assets/badges/ga.svg) |
 | Knowledge Base MCP endpoint | <img src="./assets/icons/code.svg" width="24" alt=""/> | `/knowledgebases/{name}/mcp` on your API version/region | ![Public preview](./assets/badges/public-preview.svg) |
 
-- **Tier: Basic minimum.** Semantic ranker and Knowledge Bases (agentic retrieval) run on **Basic and above** — the Free tier does not support either. **Standard (S1) or higher is recommended for production/customer-facing workloads** (replica/partition scale, concurrency headroom); Basic is sufficient for a POC-scale demo. Semantic ranker is billed per-query on top of the tier's hourly rate regardless of which tier you pick.
+- **Tier: Basic minimum.** Semantic ranker and Knowledge Bases (agentic retrieval) run on **Basic and above** — the Free tier does not support either. **Standard (S1) or higher is recommended for production workloads** (replica/partition scale, concurrency headroom); Basic is sufficient for a POC-scale demo. Semantic ranker is billed per-query on top of the tier's hourly rate regardless of which tier you pick.
 - Confirm **semantic ranker** is enabled on the service (it's a per-service setting, not automatic).
 - Confirm whether the **Knowledge Base MCP endpoint** (`/knowledgebases/{name}/mcp`) is enabled on your chosen API version/region — this is real and GA/preview per Microsoft Learn (not a fabricated feature), but exact API version and auth support can still shift. See § 8 below.
 
@@ -265,7 +265,7 @@ az cognitiveservices account list-models --name <foundry-account-name> --resourc
 | Key Vault | <img src="./assets/icons/key-vault.svg" width="24" alt=""/> | Standard | <$5 |
 
 > [!NOTE]
-> **Total: roughly $120-175/month at POC scale on Basic tier** (roughly $300-350/month if you use Standard S1 instead). This is a rough order-of-magnitude estimate — run the `azure-pricing-model` skill for a precise, customer-specific breakdown before quoting.
+> **Total: roughly $120-175/month at POC scale on Basic tier** (roughly $300-350/month if you use Standard S1 instead). This is a rough order-of-magnitude estimate — use the [Azure pricing calculator](https://azure.microsoft.com/pricing/calculator/) with your own volumes for a precise breakdown before committing to a budget.
 
 ## Pre-flight checklist
 

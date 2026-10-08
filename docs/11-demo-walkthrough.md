@@ -1,6 +1,6 @@
-[README](../README.md) › [docs index](./00-reproduce-this-demo.md) › 11 Customer walkthrough
+[README](../README.md) › [docs index](./00-reproduce-this-demo.md) › 11 Demo walkthrough
 
-# 11 — Customer walkthrough
+# 11 — Demo walkthrough
 
 <p>
   <img src="./assets/icons/dev-console.svg" width="40" alt="Developer console"/>&nbsp;
@@ -14,7 +14,7 @@
 ![Static-only](./assets/badges/static-only.svg) ![Default](./assets/badges/default.svg) ![version](./assets/badges/version.svg)
 
 A scripted, self-checking demo. Run it **before** the session to prove the story still lands,
-then use `--present` **during** the session as the talk track.
+then use `--present` **during** the session as the presenter script.
 
 > [!NOTE]
 > **Validation status.** The walkthrough script is ![Static-only](./assets/badges/static-only.svg) — validated by its offline tests, not run
@@ -33,23 +33,23 @@ then use `--present` **during** the session as the talk track.
 | <img src="./assets/icons/file.svg" width="24" alt=""/> | **Follow up** (after) | the `--report` output | None — a Markdown table of results to attach to an email |
 
 > [!TIP]
-> **Presenter tip.** Rehearse step 3 until it is boring — it is the moment the pattern sells
-> itself. Run `--present` on the shared screen so the audience sees the questions and the
+> **Presenter tip.** Rehearse step 3 until it is boring — it is the step that proves the
+> whole pattern works. Run `--present` on the shared screen so the audience sees the questions and the
 > expected citations, while the live answers come from Copilot Chat.
 
 ---
 
 ## The story in five steps
 
-[![Customer walkthrough](./assets/customer-walkthrough.png)](./assets/customer-walkthrough.png)
+[![Demo walkthrough](./assets/demo-walkthrough.png)](./assets/demo-walkthrough.png)
 
-<sub>Editable source: [`assets/customer-walkthrough.drawio`](./assets/customer-walkthrough.drawio). The lower half of the diagram shows how a rehearsal run evaluates each step.</sub>
+<sub>Editable source: [`assets/demo-walkthrough.drawio`](./assets/demo-walkthrough.drawio). The lower half of the diagram shows how a rehearsal run evaluates each step.</sub>
 
 | # | Step | What it proves | Pass condition |
 |---:|---|---|---|
 | 1 | Prose lookup | Basic grounded retrieval | Expected document in the top 3, as `text` |
 | 2 | Cross-document routing | No bleed between manuals | Expected document in the top 3 |
-| 3 | **Figure-only answer** | The vision path works — **the moment the pattern sells itself** | An `image-description` reference **from the expected document** in the top 3 |
+| 3 | **Figure-only answer** | The vision path works — **the step that proves the whole pattern** | An `image-description` reference **from the expected document** in the top 3 |
 | 4 | Deep section | Citation granularity | Expected document in the top 3 |
 | 5 | Out of corpus | No hallucinated answer | **No** references returned |
 
@@ -72,7 +72,7 @@ The shipped example (`samples/walkthrough.example.json`) for the RISC-V corpus.
 
 Each card is what you say, what you show, and the proof that the step landed.
 
-| Step | Talk track (`SAY`) | Expected result | Proof |
+| Step | Presenter script (`SAY`) | Expected result | Proof |
 |---|---|---|---|
 | <img src="./assets/icons/file.svg" width="24" alt=""/> **1 · Prose lookup** | A developer asks a reference-manual question without leaving the editor. The answer cites the exact document and section. | The Debug Module spec is cited as a `text` reference | `[PASS]` line in the rehearsal output; expected document in the top 3 |
 | <img src="./assets/icons/folder.svg" width="24" alt=""/> **2 · Cross-document routing** | Two manuals are indexed together. The question routes to the right one, with no bleed from the other. | `riscv-spec` is cited, not the debug spec | Expected document in the top 3 |
@@ -117,7 +117,7 @@ to a follow-up email.
 python demo_walkthrough.py --script ../samples/walkthrough.example.json --present
 ```
 
-This prints each step's talk track (`SAY`), the question to type into Copilot Chat (`ASK`) and
+This prints each step's presenter script (`SAY`), the question to type into Copilot Chat (`ASK`) and
 what a correct answer cites (`EXPECT`). It makes no Azure calls, so it's safe to run on a
 screen share.
 
@@ -131,7 +131,7 @@ Copy the example and replace the queries. Schema:
 |---|---|---|
 | `title` | no | Heading for the presenter view and the report |
 | `steps[].title` | no | Step name |
-| `steps[].say` | no | Talk track for the presenter |
+| `steps[].say` | no | Presenter script for the step |
 | `steps[].query` | **yes** | The question — type the same text into Copilot Chat |
 | `steps[].expectSource` | no | Substring of the cited document name. Split parts (`manual__p0301-0600.pdf`) still match `manual` |
 | `steps[].expectKind` | no | `text` or `image-description` |

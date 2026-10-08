@@ -229,6 +229,6 @@ drawing something wrong.
 
 ---
 
-Next: [11 - Customer walkthrough](./11-customer-walkthrough.md) →
+Next: [11 - Demo walkthrough](./11-demo-walkthrough.md) →
 
 *Last updated: 2026-10-02*

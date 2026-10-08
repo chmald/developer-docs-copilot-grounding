@@ -7,7 +7,7 @@ param location string
 @description('Tags to apply to all resources')
 param tags object = {}
 
-@description('Search service SKU -- Basic (or higher) is sufficient for semantic ranker and Knowledge Bases at POC scale; Standard (S1) or higher is recommended for production/customer-facing workloads (replica/partition scale, concurrency headroom)')
+@description('Search service SKU -- Basic (or higher) is sufficient for semantic ranker and Knowledge Bases at POC scale; Standard (S1) or higher is recommended for production workloads (replica/partition scale, concurrency headroom)')
 @allowed([
   'basic'
   'standard'

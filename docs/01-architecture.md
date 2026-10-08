@@ -20,7 +20,7 @@ then [02-prerequisites.md](./02-prerequisites.md).
 **If you read one other page, read
 [08-extraction-tier-comparison.md](./08-extraction-tier-comparison.md)** — it is the measured
 justification for the hybrid ingestion design below, including the cost model and the
-customer-facing "why both services" narrative.
+stakeholder-ready "why both services" narrative.
 
 ## At a glance
 
@@ -49,7 +49,7 @@ customer-facing "why both services" narrative.
 
 | | Not in scope |
 |---|---|
-| ❌ | Not a general-purpose chatbot for business users (Teams / M365 Copilot) — see [`rag-knowledge-base-pattern`](../../rag-knowledge-base-pattern/README.md) for that surface |
+| ❌ | Not a general-purpose chatbot for business users (Teams / M365 Copilot) — see [Document Q&A knowledge agent](https://github.com/chmald/document-qa-knowledge-agent) for that surface |
 | ❌ | Not a write-back or code-modification tool — retrieval only; the MCP tool returns grounded text, it does not edit files or call other systems |
 | ❌ | Not scoped to a specific hardware vendor or document family — any PDF corpus fits the same pipeline |
 
@@ -84,7 +84,7 @@ Full measurements, the DI-only vs CU-only vs hybrid comparison, and cost:
 <sub>Editable source: [`assets/dev-docs-mcp-knowledge-agent-architecture.drawio`](./assets/dev-docs-mcp-knowledge-agent-architecture.drawio) — open in VS Code (draw.io extension) or app.diagrams.net; regenerate the PNG with `python scripts/export_diagrams.py docs/assets`.</sub>
 
 > [!WARNING]
-> The pills on each component follow the legend at the bottom of the diagram. The two **PREVIEW** pills, Tier CU (semantic chunking) and the knowledge base plus its native MCP endpoint, are the components listed in [docs/08 › Verify before you quote](./08-extraction-tier-comparison.md#verify-before-you-quote). A customer that cannot accept preview components runs the GA Tier DI+ path for the whole corpus.
+> The pills on each component follow the legend at the bottom of the diagram. The two **PREVIEW** pills, Tier CU (semantic chunking) and the knowledge base plus its native MCP endpoint, are the components listed in [docs/08 › Verify before you quote](./08-extraction-tier-comparison.md#verify-before-you-quote). A team that cannot accept preview components runs the GA Tier DI+ path for the whole corpus.
 
 ### Tier → component → role
 
@@ -96,7 +96,7 @@ Full measurements, the DI-only vs CU-only vs hybrid comparison, and cost:
 | 4 · Retrieval | <img src="./assets/icons/ai-search.svg" width="24" alt=""/> | Unified AI Search index ![GA](./assets/badges/ga.svg), knowledge base (`extractiveData`) ![Public preview](./assets/badges/public-preview.svg) | One corpus regardless of tier; agentic retrieval with query planning |
 | 5 · MCP surface | <img src="./assets/icons/container-apps.svg" width="24" alt=""/> | Native Knowledge Base MCP endpoint ![Public preview](./assets/badges/public-preview.svg); optional wrapper on Container Apps ![Optional](./assets/badges/optional.svg); Key Vault | Zero-code MCP exposure; wrapper only for defense-in-depth |
 | 6 · Developer | <img src="./assets/icons/code.svg" width="24" alt=""/> | VS Code + GitHub Copilot (agent mode); `demo_walkthrough.py` | Consumption; scripted demo verification |
-| Optional lane | <img src="./assets/icons/folder.svg" width="24" alt=""/> | `export_repo_corpus.py` → repository package → customer repo ![Opt-in](./assets/badges/opt-in.svg) | The same documents committed next to the code ([10](./10-repo-corpus-export.md)) |
+| Optional lane | <img src="./assets/icons/folder.svg" width="24" alt=""/> | `export_repo_corpus.py` → repository package → your application repo ![Opt-in](./assets/badges/opt-in.svg) | The same documents committed next to the code ([10](./10-repo-corpus-export.md)) |
 
 ---
 

@@ -107,7 +107,7 @@ per minute scale with it.
 
 > [!NOTE]
 > **Model currency.** Model names and versions move; check the live Foundry catalog and the
-> retirement schedule before a customer build, and override here rather than editing Bicep.
+> retirement schedule before a production build, and override here rather than editing Bicep.
 
 ### 1.4 Hook behaviour
 

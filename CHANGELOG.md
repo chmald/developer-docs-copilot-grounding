@@ -4,6 +4,17 @@ Change history for this pattern. Entries are listed newest-first.
 
 ---
 
+## 2026-10-08
+
+### Docs: rewrote for external audiences; removed internal terminology
+
+- Reworded the README, docs, code comments, script help text and diagram labels so the repo reads as a self-contained reference for any reader: no references to private authoring tooling or numbered internal rules, and no sales-role framing — guidance now addresses you, your team and your stakeholders.
+- `docs/11-customer-walkthrough.md` is now [`docs/11-demo-walkthrough.md`](./docs/11-demo-walkthrough.md) (diagram `customer-walkthrough.*` → `demo-walkthrough.*`); the presenter view is called the *presenter script*, and `demo_walkthrough.py` defaults its title to "Demo walkthrough".
+- The cost note in `docs/02` points to the public [Azure pricing calculator](https://azure.microsoft.com/pricing/calculator/); links to the sibling RAG pattern now use its public GitHub URL instead of a local relative path.
+- Diagram legends read "preview API or feature: call it out to stakeholders"; 11 diagrams re-exported (`export_diagrams.py --check`: 0 stale).
+
+---
+
 ## 2026-10-02
 
 ### Visual refresh — official icons, status pills, legends, nine new diagrams, docs on the visual standard (v1.2.1)
@@ -12,7 +23,7 @@ Change history for this pattern. Entries are listed newest-first.
 |---|---|
 | **All eight diagrams moved to the official Microsoft Azure Architecture Icons (V24)**, embedded as data URIs (`iconKey` + embed step) instead of draw.io's bundled `img/lib/azure2` library; Foundry, Foundry Models, Document Intelligence and AI Search now use their current icons | The bundled library predates the Foundry icons, and embedded icons render identically offline, in the VS Code extension and in the PNG export |
 | **Icon-inside-tile for every service and script tile**, emoji glyphs removed; layer containers carry a header icon | Edges attach to tile borders and never cross a label; one icon size per diagram |
-| **Status pills + legend on every diagram** — GA, PREVIEW, DEFAULT, OPTIONAL, OPT-IN (walkthrough: PASS / FAIL). PREVIEW marks Tier CU semantic chunking and the knowledge base / native MCP endpoint (`2026-05-01-preview`), matching docs/08 › Verify before you quote | A customer can see at a glance what is preview, what is the default path and what can be skipped |
+| **Status pills + legend on every diagram** — GA, PREVIEW, DEFAULT, OPTIONAL, OPT-IN (walkthrough: PASS / FAIL). PREVIEW marks Tier CU semantic chunking and the knowledge base / native MCP endpoint (`2026-05-01-preview`), matching docs/08 › Verify before you quote | A reader can see at a glance what is preview, what is the default path and what can be skipped |
 | **Accent bar, Segoe UI throughout, footer credit** (pattern · diagram · version · icon source) | Slide-ready, consistent look across all eight |
 | README "Diagrams" note explains the icons and pills; the README assets row lists all eight diagrams; docs/01 ties the PREVIEW pills to the docs/08 status table | The docs described four diagrams and didn't explain the new visual vocabulary |
 | **Docs retrofitted to the visual doc standard** (same day): every page now has a breadcrumb, a hero row of official product icons, status badges, an *At a glance* table, icons in service tables, GitHub alert callouts, step cards, collapsible long blocks, a Next link and a footer. `docs/11` was expanded into a full run-of-show with step cards and a "do not show" list | Docs were text and plain tables; the reference demo standard makes them skimmable and forwardable |
@@ -66,9 +77,9 @@ that coding assistants read from the working tree, not only a search index.
 |---|---|
 | **New `scripts/export_repo_corpus.py`** + [docs/10](./docs/10-repo-corpus-export.md) | PDF → page-cited Markdown sections, original figure crops, AI-drafted Mermaid for flow/block/state diagrams, corpus + per-document READMEs with Mermaid visuals, `manifest.json` with source and file hashes, and a Copilot-instructions snippet. Analyze once (billable, cached by file hash), export offline as often as needed. Split parts are stitched back into one document with **original** page numbers |
 | **Opt-in structured extractors** (`corpus.exportExtractors`: `registers`, `pins`, `electrical`) | Register tables become JSON + a Mermaid bit-field diagram + a Markdown table; pin and electrical tables become JSON with parsed min/typ/max. Off by default so the pattern stays corpus-neutral; a reusability guard test enforces that generic output carries no hardware vocabulary |
-| **New `scripts/demo_walkthrough.py`** + `samples/walkthrough.example.json` + [docs/11](./docs/11-customer-walkthrough.md) | Section E of the test plan was manual. It is now a scripted, self-checking walkthrough with expected sources and content kinds (the figure step must be answered from an `image-description` row), a `--present` talk track that makes no Azure calls, and a Markdown report |
+| **New `scripts/demo_walkthrough.py`** + `samples/walkthrough.example.json` + [docs/11](./docs/11-demo-walkthrough.md) | Section E of the test plan was manual. It is now a scripted, self-checking walkthrough with expected sources and content kinds (the figure step must be answered from an `image-description` row), a `--present` presenter script that makes no Azure calls, and a Markdown report |
 | **`hybrid_ingest.py --upload` refuses oversized documents without `--split` or `--no-split`** | Routing a > 300-page manual to Tier DI+ is a quality and reliability decision (docs/09), so it must be explicit. `--plan` warns; `--upload` stops before uploading anything |
-| **Visuals** — four draw.io diagrams (reference architecture, hybrid routing, repository export, customer walkthrough) built on the Azure icon set, each committed as `.drawio` source **plus** an exported PNG that the docs embed; all hand-authored Mermaid removed from README and docs/01, 08, 10, 11; new `scripts/export_diagrams.py` re-exports PNGs via the draw.io desktop CLI and `--check` flags a PNG older than its source | Wider audiences grasp the design from a real architecture picture before reading prose, and a PNG renders identically in GitHub, Azure DevOps, VS Code, email and slides. The architecture diagram was also stale (single ingestion tier, `gpt-4o-mini`, "preview" MCP caveat) and now shows the hybrid tiers, model deployments and the repository-export lane |
+| **Visuals** — four draw.io diagrams (reference architecture, hybrid routing, repository export, demo walkthrough) built on the Azure icon set, each committed as `.drawio` source **plus** an exported PNG that the docs embed; all hand-authored Mermaid removed from README and docs/01, 08, 10, 11; new `scripts/export_diagrams.py` re-exports PNGs via the draw.io desktop CLI and `--check` flags a PNG older than its source | Wider audiences grasp the design from a real architecture picture before reading prose, and a PNG renders identically in GitHub, Azure DevOps, VS Code, email and slides. The architecture diagram was also stale (single ingestion tier, `gpt-4o-mini`, "preview" MCP caveat) and now shows the hybrid tiers, model deployments and the repository-export lane |
 | **docs/04 § F** — install requirements before running tests; test count 52 → 80, with a per-file coverage table | Without the `mcp` SDK, `test_mcp_fallback_server.py` fails at *collection*, which reads like a broken suite |
 
 **Verified against current documentation (2026-09-30):** Document Intelligence v4.0 GA
@@ -85,7 +96,7 @@ not publish its Mermaid version, and every generated diagram has a Markdown-tabl
 
 Not yet exercised against a live Document Intelligence resource — the exporter's Azure calls
 are verified against the REST reference, and the offline stage is covered by tests. Run
-`--analyze` on the sample corpus before the first customer use.
+`--analyze` on the sample corpus before the first real use.
 
 ---
 
@@ -128,7 +139,7 @@ symptom**, because the recurring theme was that the error message named the wron
 - **Corrections to earlier guidance** — six documented claims that measurement later disproved,
   recorded deliberately rather than quietly overwritten
 
-Headline lesson: **a pattern is not customer-ready until it has been built from zero, twice.**
+Headline lesson: **a pattern is not ready for others to reuse until it has been built from zero, twice.**
 This one was authored, accuracy-reviewed against Microsoft Learn, and API-contract validated —
 three passes — and the first real deployment still hit nine defects, six of them hard blockers.
 
@@ -454,7 +465,7 @@ A validation pass over `scripts/post_deploy_search.py` — six issues found by s
 | 8 | **Retrieve call omitted `knowledgeSourceParams`** | `references[].sourceData` returns `null`; all citation hydration reads from an empty object |
 | 9 | Data source connection string missing the documented trailing `/` | Cosmetic; corrected to the canonical form |
 
-**Schema change — citations are now heading paths, not page numbers.** The Document Layout skill in markdown mode emits `content` + `sections` (h1–h6) + `ordinal_position` per section; **it does not emit page numbers**. The index's `pageNumber`/`sectionHeading` fields were therefore unfillable. They are replaced by `sectionH1` / `sectionH2` / `sectionH3` mapped from `sections/h1|h2|h3` (mirroring Microsoft's canonical semantic-chunking sample), and citations now render as `document — Peripherals > Timer Registers`. Heading paths are also more stable than page numbers across document revisions. `docs/01-architecture.md` documents the `outputFormat: "text"` + `locationMetadata` alternative for engagements where page-level citation is a hard requirement. The dead `lastIndexed` field (declared, never mapped) was dropped.
+**Schema change — citations are now heading paths, not page numbers.** The Document Layout skill in markdown mode emits `content` + `sections` (h1–h6) + `ordinal_position` per section; **it does not emit page numbers**. The index's `pageNumber`/`sectionHeading` fields were therefore unfillable. They are replaced by `sectionH1` / `sectionH2` / `sectionH3` mapped from `sections/h1|h2|h3` (mirroring Microsoft's canonical semantic-chunking sample), and citations now render as `document — Peripherals > Timer Registers`. Heading paths are also more stable than page numbers across document revisions. `docs/01-architecture.md` documents the `outputFormat: "text"` + `locationMetadata` alternative for deployments where page-level citation is a hard requirement. The dead `lastIndexed` field (declared, never mapped) was dropped.
 
 **Also fixed:** the embedding skill now sets `dimensions` (must match the index vector width); the Split skill declares `azureOpenAITokenizerParameters` (`cl100k_base`); `deploy_mcp_server.ps1` was still setting `KNOWLEDGE_AGENT_NAME=$($ids.knowledgeAgentName)` — both sides dead since the rename, which would have silently degraded the wrapper to raw hybrid search.
 
@@ -493,7 +504,7 @@ A second-pass review found the docs/code split the wrong way (5 core docs at the
 
 **Documentation restructure:**
 - Moved `01-architecture.md` through `05-troubleshooting.md` from the repo root into `docs/`, alongside the existing `docs/00`, `docs/06`, `docs/07`, and `docs/assets/` — the repo root now holds only `README.md` plus ADO/IaC/code scaffolding. Rewrote every cross-reference (root ↔ docs ↔ samples ↔ tests/fixtures) accordingly; verified programmatically that every link and `#anchor` resolves.
-- Added `docs/03b-manual-deployment.md` — a complete Azure Portal + imperative `az` CLI alternative to the Bicep path in `03-deployment.md`, for customers who can't or won't use IaC. Produces the same resource names/shapes/RBAC as `infra/main.bicep`; Phases 2/3/5 point back to the Bicep doc since those phases are already infrastructure-agnostic.
+- Added `docs/03b-manual-deployment.md` — a complete Azure Portal + imperative `az` CLI alternative to the Bicep path in `03-deployment.md`, for teams that can't or won't use IaC. Produces the same resource names/shapes/RBAC as `infra/main.bicep`; Phases 2/3/5 point back to the Bicep doc since those phases are already infrastructure-agnostic.
 
 **Microsoft Learn accuracy corrections** (via a cited research pass against current Azure documentation):
 - **Renamed "Knowledge Agent" → "Knowledge Base"** everywhere (docs, code identifiers, resource names `ka-dev-docs`→`kb-documents`, env vars, CLI flags) — Microsoft renamed the underlying Azure AI Search agentic-retrieval concept in 2026.
@@ -505,13 +516,13 @@ A second-pass review found the docs/code split the wrong way (5 core docs at the
 
 Re-verified after all changes: `az bicep build` compiles clean, and the pytest suite still passes 12/12 — no functional regressions from either the restructure or the terminology/endpoint corrections.
 
-This entry is the public decision record for the 2026-08-18 corrections.
+This entry records the 2026-08-18 corrections.
 
 ### Template-completeness pass (no architectural change)
 
-Audited `docs/` against the demo-pattern-authoring template and the sibling `secure-mcp-gateway-landing-zone` pattern. Found and fixed three gaps:
+Audited `docs/` against the repo's documentation template and a sibling MCP gateway pattern. Found and fixed three gaps:
 
-- Added `docs/assets/dev-docs-mcp-knowledge-agent-architecture.drawio` — a presentation-ready companion to the inline Mermaid diagram in `01-architecture.md` (which was already complete; only the customer-deck-ready version was missing). Cross-referenced from `01-architecture.md` and the README file index.
+- Added `docs/assets/dev-docs-mcp-knowledge-agent-architecture.drawio` — a presentation-ready companion to the inline Mermaid diagram in `01-architecture.md` (which was already complete; only the presentation-ready version was missing). Cross-referenced from `01-architecture.md` and the README file index.
 - `tests/fixtures/` was an empty directory — git doesn't track empty folders, so it would have silently disappeared on first ADO check-in even though `04-testing.md` documents it as part of the layout. Added `tests/fixtures/README.md` explaining the "bring your own PDF" placeholder.
 - `.gitignore` had no guard against committing a real (possibly copyrighted) test datasheet dropped into `tests/fixtures/` or `samples/`. Added `*.pdf` exclusions for both.
 

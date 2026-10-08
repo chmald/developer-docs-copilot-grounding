@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Scripted customer walkthrough: prepared prompts, expected citations, pass/fail.
+"""Scripted demo walkthrough: prepared prompts, expected citations, pass/fail.
 
-Run it before a customer session to prove the story still lands, and use
-`--present` during the session as the presenter's talk track. Each step names a
+Run it before a live session to prove the story still lands, and use
+`--present` during the session as the presenter's script. Each step names a
 query, what the audience should hear, and what a correct answer must cite:
 
     expectSource   substring of the cited document name (split parts such as
@@ -101,7 +101,7 @@ def _cite(r: dict) -> str:
 
 
 def present(script: dict) -> None:
-    print(f"\n{script.get('title', 'Customer walkthrough')}\n" + "=" * 72)
+    print(f"\n{script.get('title', 'Demo walkthrough')}\n" + "=" * 72)
     for i, s in enumerate(script["steps"], start=1):
         print(f"\nStep {i} — {s.get('title', '')}")
         if s.get("say"):
@@ -150,7 +150,7 @@ def _esc(s) -> str:
 
 def render_report(script: dict, results: list[dict], when: str) -> str:
     passed = sum(1 for r in results if r["passed"])
-    L = [f"# Walkthrough report — {script.get('title', 'Customer walkthrough')}", "",
+    L = [f"# Walkthrough report — {script.get('title', 'Demo walkthrough')}", "",
          f"Run {when} · **{passed}/{len(results)} steps passed**", "",
          "| # | Step | Result | Top citation | Seconds |", "|---:|---|---|---|---:|"]
     for r in results:
@@ -174,7 +174,7 @@ def main() -> None:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--script", required=True, help="Walkthrough JSON (see samples/walkthrough.example.json)")
     p.add_argument("--ids-file", help="Required unless --present")
-    p.add_argument("--present", action="store_true", help="Print the talk track only -- no Azure calls")
+    p.add_argument("--present", action="store_true", help="Print the presenter script only -- no Azure calls")
     p.add_argument("--report", action="store_true", help="Also write a Markdown report to out/")
     p.add_argument("--top", type=int, default=3, help="Citations considered per step (default 3)")
     args = p.parse_args()

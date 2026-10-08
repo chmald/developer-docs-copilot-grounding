@@ -1,13 +1,13 @@
 <mxfile host="Electron" version="26.0.0">
-  <diagram id="customer-walkthrough" name="Customer Walkthrough">
+  <diagram id="demo-walkthrough" name="Demo Walkthrough">
     <mxGraphModel dx="1422" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1700" pageHeight="802" math="0" shadow="0" background="#FFFFFF">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="title" value="&lt;b&gt;Customer walkthrough — five steps, each with an expected citation&lt;/b&gt;" vertex="1" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=26;fontColor=#201F1E;fontFamily=Segoe UI;">
+        <mxCell id="title" value="&lt;b&gt;Demo walkthrough — five steps, each with an expected citation&lt;/b&gt;" vertex="1" parent="1" style="text;html=1;whiteSpace=wrap;align=left;verticalAlign=middle;fontSize=26;fontColor=#201F1E;fontFamily=Segoe UI;">
           <mxGeometry x="20" y="10" width="1660" height="40" as="geometry" />
         </mxCell>
-        <mxCell id="subtitle" value="Rehearse with demo_walkthrough.py (pass/fail + report), present with --present (talk track, no Azure calls)." vertex="1" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=0;fontColor=#605E5C;whiteSpace=wrap;fontFamily=Segoe UI;">
+        <mxCell id="subtitle" value="Rehearse with demo_walkthrough.py (pass/fail + report), present with --present (presenter script, no Azure calls)." vertex="1" parent="1" style="text;html=1;align=left;verticalAlign=middle;fontSize=14;fontStyle=0;fontColor=#605E5C;whiteSpace=wrap;fontFamily=Segoe UI;">
           <mxGeometry x="20" y="50" width="1660" height="26" as="geometry" />
         </mxCell>
         <mxCell id="s0" value="&lt;font style='font-size:15px'&gt;&lt;b&gt;1 · Prose lookup&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;proves&lt;/i&gt;&lt;br&gt;grounded retrieval&lt;br&gt;&lt;br&gt;&lt;i&gt;passes when&lt;/i&gt;&lt;br&gt;expected document&lt;br&gt;in the top 3, as text" vertex="1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3F9FD;strokeColor=#0078D4;strokeWidth=2;fontSize=12;fontColor=#323130;align=center;verticalAlign=middle;arcSize=10;fontFamily=Segoe UI;">
@@ -19,7 +19,7 @@
         <mxCell id="se1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#605E5C;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="s0" target="s1">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="s2" value="&lt;font style='font-size:15px'&gt;&lt;b&gt;3 · Figure-only answer ★&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;proves&lt;/i&gt;&lt;br&gt;the vision path works —&lt;br&gt;&lt;b&gt;the moment it sells itself&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;passes when&lt;/i&gt;&lt;br&gt;an image-description row&lt;br&gt;from the expected document" vertex="1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DFF6DD;strokeColor=#107C10;strokeWidth=3;fontSize=12;fontColor=#323130;align=center;verticalAlign=middle;arcSize=10;fontFamily=Segoe UI;">
+        <mxCell id="s2" value="&lt;font style='font-size:15px'&gt;&lt;b&gt;3 · Figure-only answer ★&lt;/b&gt;&lt;/font&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;proves&lt;/i&gt;&lt;br&gt;the vision path works —&lt;br&gt;&lt;b&gt;the key step&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;passes when&lt;/i&gt;&lt;br&gt;an image-description row&lt;br&gt;from the expected document" vertex="1" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DFF6DD;strokeColor=#107C10;strokeWidth=3;fontSize=12;fontColor=#323130;align=center;verticalAlign=middle;arcSize=10;fontFamily=Segoe UI;">
           <mxGeometry x="688" y="100" width="300" height="200" as="geometry" />
         </mxCell>
         <mxCell id="se2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;html=1;endArrow=block;endFill=1;strokeWidth=2;strokeColor=#605E5C;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="s1" target="s2">
@@ -117,7 +117,7 @@
         <mxCell id="rs_lg_PREVIEW" value="PREVIEW" style="rounded=1;arcSize=50;html=1;whiteSpace=nowrap;fillColor=#CA5010;strokeColor=#FFFFFF;strokeWidth=1.5;fontColor=#FFFFFF;fontStyle=1;fontSize=9;align=center;verticalAlign=middle;fontFamily=Segoe UI;" vertex="1" parent="1">
           <mxGeometry x="90" y="733" width="61" height="18" as="geometry" />
         </mxCell>
-        <mxCell id="rs_lgt_PREVIEW" value="preview API or feature: say so to the customer" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#605E5C;fontFamily=Segoe UI;" vertex="1" parent="1">
+        <mxCell id="rs_lgt_PREVIEW" value="preview API or feature: call it out to stakeholders" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#605E5C;fontFamily=Segoe UI;" vertex="1" parent="1">
           <mxGeometry x="157" y="732" width="332" height="20" as="geometry" />
         </mxCell>
         <mxCell id="rs_lg_PASS" value="PASS" style="rounded=1;arcSize=50;html=1;whiteSpace=nowrap;fillColor=#107C10;strokeColor=#FFFFFF;strokeWidth=1.5;fontColor=#FFFFFF;fontStyle=1;fontSize=9;align=center;verticalAlign=middle;fontFamily=Segoe UI;" vertex="1" parent="1">
@@ -132,7 +132,7 @@
         <mxCell id="rs_lgt_FAIL" value="step missed: exit code 1" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontColor=#605E5C;fontFamily=Segoe UI;" vertex="1" parent="1">
           <mxGeometry x="791" y="732" width="178" height="20" as="geometry" />
         </mxCell>
-        <mxCell id="rs_footer" value="Developer Docs MCP Knowledge Agent | customer walkthrough | v1.2.1 | Icons: Microsoft Azure Architecture Icons (V24)" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#8A8886;fontFamily=Segoe UI;" vertex="1" parent="1">
+        <mxCell id="rs_footer" value="Developer Docs MCP Knowledge Agent | demo walkthrough | v1.2.1 | Icons: Microsoft Azure Architecture Icons (V24)" style="text;html=1;align=left;verticalAlign=middle;fontSize=10;fontColor=#8A8886;fontFamily=Segoe UI;" vertex="1" parent="1">
           <mxGeometry x="20" y="762" width="1660" height="20" as="geometry" />
         </mxCell>
       </root>
