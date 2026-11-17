@@ -26,8 +26,11 @@ $summary = [ordered]@{
     aiServicesSubdomainUrl       = Get-Out 'AI_SERVICES_SUBDOMAIN_URL'
     foundryProject               = Get-Out 'FOUNDRY_PROJECT'
     embeddingDeployment          = Get-Out 'EMBEDDING_DEPLOYMENT'
+    embeddingModel               = Get-Out 'EMBEDDING_MODEL'
     chatDeployment               = Get-Out 'CHAT_DEPLOYMENT'
+    chatModel                    = Get-Out 'CHAT_MODEL'
     visionDeployment             = Get-Out 'VISION_DEPLOYMENT'
+    visionModel                  = Get-Out 'VISION_MODEL'
     frontierDeployment           = Get-Out 'FRONTIER_DEPLOYMENT'
     frontierModel                = Get-Out 'FRONTIER_MODEL'
     searchService                = Get-Out 'SEARCH_SERVICE'
@@ -52,26 +55,57 @@ if ((Set-SearchAdminKeySecret -ResourceGroup $summary.resourceGroup -SearchServi
 }
 
 # --- optional: ingest a corpus in the same run -----------------------------
+$uploader = $null
+if ("$(Get-Out 'DEMO_DEPLOY_UPLOADER')" -eq 'true') {
+    $subnetId = Get-Out 'UPLOADER_SUBNET_ID'
+    if (-not $subnetId) { throw 'DEMO_DEPLOY_UPLOADER requires UPLOADER_SUBNET_ID (a dedicated delegated subnet).' }
+    $uploaderArgs = @{ IdsFile = $idsPath; SubnetId = $subnetId }
+    $accessFile = Get-Out 'UPLOADER_ACCESS_FILE'
+    if ($accessFile) { $uploaderArgs.AccessFile = $accessFile }
+    $uploader = & (Join-Path $repoRoot 'scripts' 'deploy_uploader.ps1') @uploaderArgs
+    if (-not $uploader.url) { throw 'Uploader deployment did not return a URL.' }
+}
 $corpus = Get-Out 'DEMO_CORPUS_DIR'
 if ($corpus) {
     if (-not (Test-Path $corpus)) {
-        Write-Host "[postprovision] DEMO_CORPUS_DIR '$corpus' does not exist -- skipping ingestion." -ForegroundColor Yellow
+        throw "DEMO_CORPUS_DIR '$corpus' does not exist. No ready-to-query deployment can be reported."
     } else {
         $python = if (Get-Out 'DEMO_PYTHON') { Get-Out 'DEMO_PYTHON' } else { 'python' }
         $splitFlag = if ("$(Get-Out 'DEMO_SPLIT')" -eq 'false') { '--no-split' } else { '--split' }
         $ingest = Join-Path $repoRoot 'scripts' 'hybrid_ingest.py'
         Write-Host "[postprovision] Ingesting $corpus ($splitFlag) ..." -ForegroundColor Cyan
-        & $python $ingest --ids-file $idsPath $splitFlag --upload --source-dir $corpus
-        if ($LASTEXITCODE -ne 0) { Write-Host "[postprovision] Upload failed -- fix and re-run: azd hooks run postprovision" -ForegroundColor Red; exit 1 }
+        if ($uploader) {
+            & (Join-Path $repoRoot 'scripts' 'upload_pdfs.ps1') -AccessFile $uploader.accessFile `
+                -SourceDir $corpus -AllowLarge:($splitFlag -eq '--no-split')
+        } else {
+            & $python $ingest --ids-file $idsPath $splitFlag --upload --source-dir $corpus
+            if ($LASTEXITCODE -ne 0) { Write-Host "[postprovision] Upload failed -- fix and re-run: azd hooks run postprovision" -ForegroundColor Red; exit 1 }
+        }
         & $python $ingest --ids-file $idsPath --build
         if ($LASTEXITCODE -ne 0) { Write-Host "[postprovision] Build failed -- see the error above." -ForegroundColor Red; exit 1 }
         Write-Host "[postprovision] Ingestion started. Poll: python scripts/hybrid_ingest.py --ids-file demo-ids.local.json --status" -ForegroundColor Green
     }
 }
 
+if ("$(Get-Out 'DEMO_CONFIGURE_FOUNDRY')" -ne 'false') {
+    $python = if (Get-Out 'DEMO_PYTHON') { Get-Out 'DEMO_PYTHON' } else { 'python' }
+    $setupArgs = @((Join-Path $repoRoot 'scripts' 'configure_foundry_iq.py'), '--ids-file', $idsPath)
+    $knowledgeBase = Get-Out 'FOUNDRY_KNOWLEDGE_BASE'
+    if ($knowledgeBase) { $setupArgs += @('--knowledge-base', $knowledgeBase) }
+    & $python @setupArgs
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Foundry IQ readiness/setup failed. Fix the reported stage and re-run postprovision; use DEMO_CONFIGURE_FOUNDRY=false only for foundation-only provisioning.'
+    }
+}
+
 Write-Host "`n[postprovision] Done. Next:" -ForegroundColor Cyan
+Write-Host "  Q&A: scripts\start_qa.ps1 -IdsFile $idsPath -Python <frontend-python>" -ForegroundColor Cyan
 if (-not $corpus) {
-    Write-Host "  python scripts/hybrid_ingest.py --ids-file demo-ids.local.json --split --upload --source-dir <your-pdfs>" -ForegroundColor Cyan
+    if ($uploader) {
+        Write-Host "  Open $($uploader.url); the upload token is in $($uploader.accessFile)" -ForegroundColor Cyan
+    } else {
+        Write-Host "  python scripts/hybrid_ingest.py --ids-file demo-ids.local.json --split --upload --source-dir <your-pdfs>" -ForegroundColor Cyan
+    }
     Write-Host "  python scripts/hybrid_ingest.py --ids-file demo-ids.local.json --build" -ForegroundColor Cyan
 }
 Write-Host "  Wire Copilot: docs/07 · Rehearse: python scripts/demo_walkthrough.py --ids-file demo-ids.local.json --script samples/walkthrough.example.json" -ForegroundColor Cyan

@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -11,4 +11,4 @@ EXPOSE 8080
 
 ENV MCP_TRANSPORT=streamable-http
 
-CMD ["python", "mcp_fallback_server.py", "--transport", "streamable-http", "--port", "8080"]
+CMD ["python", "mcp_fallback_server.py", "--transport", "streamable-http", "--host", "0.0.0.0", "--port", "8080"]

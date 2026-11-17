@@ -30,7 +30,7 @@ Step-by-step build of the Developer Docs MCP Knowledge Base pattern via Bicep/Ia
 
 > [!TIP]
 > **Fastest path: `azd up`.** One command provisions everything in Phases 1–2 (resource group,
-> all four model deployments, `demo-ids.local.json`, the Key Vault secret) and can ingest a corpus
+> configured model deployments, `demo-ids.local.json`, the Key Vault secret) and can ingest a corpus
 > too. See [Fast path — azd up](#fast-path--azd-up) below. The phases after it are the
 > `deploy.ps1` path and the reference for what azd does.
 
@@ -40,6 +40,15 @@ Step-by-step build of the Developer Docs MCP Knowledge Base pattern via Bicep/Ia
 ---
 
 ## Fast path — azd up
+
+> [!IMPORTANT]
+> **Q&A readiness (2026-11-16).** Postprovision now configures the Foundry IQ
+> connection/agent and waits for successful, non-empty indexing. Supply a real
+> corpus through `DEMO_CORPUS_DIR`, or reuse an already indexed KB. Select a
+> non-default KB with `FOUNDRY_KNOWLEDGE_BASE`. Deliberate foundation-only builds
+> must set `DEMO_CONFIGURE_FOUNDRY=false`; they are not ready-to-query deployments.
+> Install the updated `scripts\requirements.txt` before invoking the hook.
+> See [Foundry IQ Q&A](./13-foundry-iq-qa.md) for the setup diagram and exact steps.
 
 [![azd up flow](./assets/azd-up-flow.png)](./assets/azd-up-flow.png)
 
@@ -75,8 +84,8 @@ azd up
 | Hook | | What azd runs | Same as |
 |---|---|---|---|
 | preprovision hook | <img src="./assets/icons/entra-id.svg" width="24" alt=""/> | Environment-name guard; `az` must match the azd subscription/tenant; soft-deleted Foundry account purged (`DEMO_PURGE_SOFT_DELETED=true`) or reported | Phase 0 + `deploy.ps1`'s soft-delete check |
-| provision | <img src="./assets/icons/resource-group.svg" width="24" alt=""/> | `infra/azd.bicep`: resource group + **the same `main.bicep`** (Storage, Foundry + project, `embedding` · `chat` · `vision` · `sol`, AI Search, Key Vault, RBAC, optional Container App) | Phase 1 and the model step of Phase 2 |
-| postprovision hook | <img src="./assets/icons/key-vault.svg" width="24" alt=""/> | Writes `demo-ids.local.json` from the outputs, stores the Search admin key in Key Vault, ingests `DEMO_CORPUS_DIR` if set | `deploy.ps1`'s tail + Phase 2 §§ 2.2–2.4 |
+| provision | <img src="./assets/icons/resource-group.svg" width="24" alt=""/> | `infra/azd.bicep`: resource group + **the same `main.bicep`** (Storage, Foundry + project, configured model deployments, AI Search, Key Vault, RBAC, optional Container App) | Phase 1 and the model step of Phase 2 |
+| postprovision hook | <img src="./assets/icons/key-vault.svg" width="24" alt=""/> | s `demo-ids.local.json` from the outputs, stores the Search admin key in Key Vault, optionally deploys the PDF uploader, ingests `DEMO_CORPUS_DIR` if set | `deploy.ps1`'s tail + Phase 2 §§ 2.2–2.4 |
 
 Every setting — region, resource group, models, capacities, SKU, hook behaviour — is an azd
 environment variable listed in [12-configuration-reference.md](./12-configuration-reference.md).
@@ -87,9 +96,33 @@ with the same names works).
 ### Fast-path validation
 
 - [ ] `azd up` ends with `[postprovision] Done`
-- [ ] `azd env get-values` shows `SEARCH_ENDPOINT`, `VISION_DEPLOYMENT=vision`, `FRONTIER_DEPLOYMENT=sol`
+- [ ] `azd env get-values` shows `SEARCH_ENDPOINT`, `VISION_DEPLOYMENT=vision`, and `FRONTIER_DEPLOYMENT=chat` unless you explicitly selected a frontier pair
 - [ ] `demo-ids.local.json` exists at the repo root
 - [ ] Continue at [Phase 3](#phase-3--knowledge-base--mcp-endpoint) (or Phase 2 § 2.2 if you didn't set `DEMO_CORPUS_DIR`)
+
+### Optional private-storage uploader
+
+[![Private upload path](./assets/private-pdf-uploader.png)](./assets/private-pdf-uploader.png)
+
+<sub>Editable source: [private-pdf-uploader.drawio](./assets/private-pdf-uploader.drawio).</sub>
+
+When direct workstation-to-Storage HTTPS is unavailable, deploy the
+[small PDF uploader](../uploader/README.md) into a dedicated delegated subnet in the
+VNet that already has the Blob private endpoint and linked private DNS. The browser
+connects only to the authenticated app; Storage public access stays disabled.
+
+| Entry point | Configuration | When to use |
+|---|---|---|
+| Existing foundation | `scripts\deploy_uploader.ps1 -IdsFile demo-ids.local.json -SubnetId <id>` | Recommended for adding the uploader without reprovisioning models |
+| Full azd run | Set `DEMO_DEPLOY_UPLOADER=true` and `UPLOADER_SUBNET_ID`, then validate/run azd | Reproducible opt-in postprovision step over the same template |
+| No IaC | [Manual Portal setup](../uploader/README.md#manual-portal-alternative) | Create the same resources and identity roles visibly |
+
+> [!IMPORTANT]
+> The uploader uses a shared token held in a Container App secret and private access
+> file. It validates/routes PDFs but does not extract, index, or answer questions.
+> With `DEMO_CORPUS_DIR`, the hook uploads through the app and then attempts the
+> existing index build. This route does not split files automatically: pre-split
+> oversized PDFs or explicitly choose unsplit DI+ with `DEMO_SPLIT=false`.
 
 ---
 
@@ -99,7 +132,7 @@ with the same names works).
 |---|---|---|---|---|
 | **0** | <img src="./assets/icons/entra-id.svg" width="24" alt=""/> | Authenticate to the intended tenant + subscription | 2 min | ☐ `az account show` matches target |
 | **1** | <img src="./assets/icons/resource-group.svg" width="24" alt=""/> | Foundation resources (RG, Storage, Key Vault, Foundry + project, Search) via Bicep | 20-40 min | ☐ All resources `Succeeded`; RBAC assigned |
-| **2** | <img src="./assets/icons/ai-search.svg" width="24" alt=""/> | Route the corpus by page count, build **both** ingestion tiers (all four model deployments now come from Phase 1's Bicep) | 20 min setup + ingestion | ☐ Both indexers `success`; index has rows from every tier routed to |
+| **2** | <img src="./assets/icons/ai-search.svg" width="24" alt=""/> | Route the corpus by page count, build **both** ingestion tiers (configured model deployments come from Phase 1's Bicep) | 20 min setup + ingestion | ☐ Both indexers `success`; index has rows from every tier routed to |
 | **3** | <img src="./assets/icons/foundry.svg" width="24" alt=""/> | Knowledge Base + verify the native MCP endpoint | 10 min | ☐ Retrieve call returns grounded, cited passages |
 | **4** | <img src="./assets/icons/container-apps.svg" width="24" alt=""/> | Optional custom wrapper MCP server ![Optional](./assets/badges/optional.svg) | 45 min | ☐ Container App responds to an MCP `tools/list` call |
 | **5** | <img src="./assets/icons/code.svg" width="24" alt=""/> | Wire GitHub Copilot / VS Code | 15 min | ☐ Copilot Chat (agent mode) answers a corpus question with a citation |
@@ -169,7 +202,7 @@ cd infra
 `deploy.ps1` runs `az deployment group create` against `main.bicep`, which provisions (see `infra/modules/`):
 
 - `storage.bicep` — Storage account + `raw` blob container
-- `foundry.bicep` — Cognitive Services multi-service account (kind `AIServices`) + Foundry project + four model deployments, created one after another: `embedding` (`text-embedding-3-large`), `chat` (`gpt-5-mini`), `vision` (`gpt-4.1`) and `sol` (`gpt-5.6-sol`). Models, versions and capacities are parameters ([12 § 1.3](./12-configuration-reference.md#13-models))
+- `foundry.bicep` — Cognitive Services multi-service account (kind `AIServices`) + Foundry project + serialized model deployments: baseline `embedding` / `chat`, optional `vision`, and optional `frontier` only when its model/version are explicitly selected. Models, versions and capacities are parameters ([12 § 1.3](./12-configuration-reference.md#13-models))
 - `search.bicep` — AI Search service (Standard tier, semantic ranker enabled)
 - `keyvault.bicep` — Key Vault for the Search admin key + any secrets the fallback server needs
 - `rbac.bicep` — role assignments (deployer + Search system-assigned MI → Storage Blob Data Reader; deployer → Key Vault Secrets Officer)
@@ -202,7 +235,7 @@ measured justification and cost.
 
 | Step | | Action | Gate |
 |---|---|---|---|
-| **2.1** | <img src="./assets/icons/azure-openai.svg" width="24" alt=""/> | Frontier model deployments (created by the Bicep) | ☐ `vision` and `sol` serving |
+| **2.1** | <img src="./assets/icons/azure-openai.svg" width="24" alt=""/> | Vision and selected planner deployments | ☐ configured aliases serving |
 | **2.2** | <img src="./assets/icons/file.svg" width="24" alt=""/> | Route the corpus (`--plan`, free) | ☐ tier split reviewed |
 | **2.3** | <img src="./assets/icons/blob-block.svg" width="24" alt=""/> | Upload into the tier prefixes (`--upload --split`) | ☐ blobs under `raw/cu/` and/or `raw/di/` |
 | **2.4** | <img src="./assets/icons/ai-search.svg" width="24" alt=""/> | Build both tiers (`--build`) | ☐ indexers started |
@@ -210,8 +243,9 @@ measured justification and cost.
 
 ### 2.1 Frontier model deployments (now created by the Bicep)
 
-Phase 1 (and `azd up`) creates `vision` and `sol` alongside `embedding` and `chat`, so there is
-nothing to do here by default. Create them by hand only if you deployed with
+Phase 1 (and `azd up`) creates `vision` when enabled, and `frontier` only when both
+`FRONTIER_MODEL_NAME` and `FRONTIER_MODEL_VERSION` are explicitly set. Otherwise KB planning
+uses the baseline chat deployment. Create optional deployments by hand only if you deployed with
 `deployHybridModels=false` / `DEPLOY_HYBRID_MODELS=false` (for example because the models
 already exist). Names must match `demo-ids.local.json` (`visionDeployment`,
 `frontierDeployment`):
@@ -233,8 +267,8 @@ already exist). Names must match `demo-ids.local.json` (`visionDeployment`,
 # misleading 30s *timeout* even though each call takes ~7s.
 az cognitiveservices account deployment create -n <foundry> -g <rg> --deployment-name vision --model-name gpt-4.1 --model-version 2025-04-14 --model-format OpenAI --sku-name GlobalStandard --sku-capacity 1000
 
-# Knowledge-base query planning. Frontier -- no timeout pressure here.
-az cognitiveservices account deployment create -n <foundry> -g <rg> --deployment-name sol --model-name gpt-5.6-sol --model-version 2026-07-09 --model-format OpenAI --sku-name GlobalStandard --sku-capacity 200
+# OPTIONAL knowledge-base query planning; verify model availability and Search support first.
+az cognitiveservices account deployment create --subscription <subscription-id> -n <foundry> -g <rg> --deployment-name frontier --model-name <supported-planner-model> --model-version <available-version> --model-format OpenAI --sku-name GlobalStandard --sku-capacity 200
 ```
 
 </details>

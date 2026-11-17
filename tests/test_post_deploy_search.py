@@ -6,6 +6,7 @@ NOT integration tests against a live Search service."""
 import json
 import sys
 from pathlib import Path
+from unittest import TestCase
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
@@ -375,6 +376,17 @@ def test_ai_services_subdomain_uses_foundry_form_without_trailing_slash():
 def test_ai_services_subdomain_honours_explicit_override_and_strips_slash():
     ids = dict(SAMPLE_IDS, aiServicesSubdomainUrl="https://custom.services.ai.azure.com/")
     assert pds._ai_services_subdomain_url(ids) == "https://custom.services.ai.azure.com"
+
+
+def test_content_understanding_subdomain_prefers_supported_region_override():
+    ids = dict(SAMPLE_IDS, contentUnderstandingSubdomainUrl="https://cu.services.ai.azure.com")
+    assert pds._content_understanding_subdomain_url(ids) == "https://cu.services.ai.azure.com"
+
+
+def test_content_understanding_subdomain_requires_a_valid_foundry_url():
+    ids = dict(SAMPLE_IDS, contentUnderstandingSubdomainUrl="http://cu.services.ai.azure.com")
+    with TestCase().assertRaisesRegex(ValueError, "HTTPS Foundry subdomain"):
+        pds._content_understanding_subdomain_url(ids)
 
 
 def test_parse_mcp_response_reads_server_sent_events():

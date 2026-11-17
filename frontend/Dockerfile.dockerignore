@@ -1,0 +1,10 @@
+**
+!frontend/
+!frontend/app.py
+!frontend/__init__.py
+!frontend/requirements.txt
+!frontend/static/
+!frontend/static/**
+!scripts/
+!scripts/mcp_fallback_server.py
+!scripts/foundry_iq.py

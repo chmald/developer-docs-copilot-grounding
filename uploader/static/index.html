@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PDF corpus uploader</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+<main>
+  <header><span class="badge">Private Storage / Managed identity</span>
+    <h1>PDF corpus uploader</h1>
+    <p>Send documents through this app to private Blob Storage. Your browser never connects to Storage.</p>
+  </header>
+  <section aria-labelledby="access-heading">
+    <h2 id="access-heading">1. Connect</h2>
+    <label for="token">Upload token</label>
+    <input id="token" type="password" autocomplete="off" spellcheck="false" placeholder="Paste the deployment's upload token">
+    <button id="connect" type="button">Check private Storage</button>
+    <p id="status" role="status" aria-live="polite">A token is required for every API request. It is not saved in browser storage.</p>
+  </section>
+  <section aria-labelledby="upload-heading">
+    <h2 id="upload-heading">2. Upload PDFs</h2>
+    <label for="files">Documents</label>
+    <input id="files" type="file" accept=".pdf,application/pdf" multiple>
+    <label class="checkbox"><input id="allow-large" type="checkbox">
+      Allow unsplit PDFs over 300 pages to use DI+; otherwise split them first.</label>
+    <button id="upload" type="button" disabled>Upload selected PDFs</button>
+    <progress id="progress" max="100" value="0" aria-label="Current upload progress"></progress>
+    <p>Default limit: 32 MiB per file. Uploads are sequential and never overwrite an existing blob.</p>
+    <p>Up to 300 pages routes to <code>cu/</code>; larger approved files route to <code>di/</code>.
+      Upload completion does not mean extraction or indexing is complete.</p>
+  </section>
+  <section aria-labelledby="results-heading">
+    <h2 id="results-heading">3. Results</h2>
+    <button id="refresh" type="button">List stored documents</button>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Document / blob</th><th>Pages</th><th>Bytes</th><th>Result</th></tr></thead>
+      <tbody id="results"></tbody>
+    </table></div>
+  </section>
+</main>
+</body>
+</html>

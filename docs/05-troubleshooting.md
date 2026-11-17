@@ -54,6 +54,22 @@ The tree has three pages. Start on the page that matches where the symptom shows
 
 ## Quick triage table
 
+For the new browser default, start with these checks and the
+[Foundry IQ runbook](./13-foundry-iq-qa.md); the existing tree below covers the
+retained infrastructure, ingestion and direct-Copilot paths.
+
+| Q&A symptom | Check / correction |
+|---|---|
+| Foundry configuration missing | Run agent setup and launch with `scripts\start_qa.ps1`; inspect `FOUNDRY_PROJECT_ENDPOINT` and `FOUNDRY_AGENT_NAME` |
+| CLI context mismatch | Sign in to the tenant in local IDs, select its subscription and recheck `az account show` |
+| Setup refuses readiness | Inspect every selected indexer's latest run and failed-document count; populate every source index |
+| Foundry 401/403 or tool permission failure | Check caller agent permissions, the project's identity, its Search Index Data Reader role and role propagation |
+| `tool_user_error` despite the correct reader role | Check Search authentication: `apiKeyOnly` rejects identity tokens. Rerun setup to enable dual key/Entra authentication, then retry |
+| Agent deleted or configuration drifted | Rerun setup with `--force` to create a fresh version |
+| Follow-up rejected after restart | Start a new conversation; local session bindings are deliberately not persisted |
+| No clickable source cards | Inspect the answer's references; only genuine returned URL annotations create cards |
+| Private source link does not open | Verify source authorization separately; Foundry IQ does not grant PDF download access |
+
 | Where | Symptom | Most likely root cause | Section |
 |---|---|---|---|
 | <img src="./assets/icons/azure-devops.svg" width="20" alt=""/> **azd** | `[preprovision] azd environment name … must be 1-12 lowercase letters/digits` | The env name becomes part of Storage/Key Vault/Foundry names | [§ 1a](#1a--azd-up) |
@@ -105,7 +121,7 @@ The tree has three pages. Start on the page that matches where the symptom shows
 ## <img src="./assets/icons/resource-group.svg" width="28" alt=""/> 1 — Foundation (Bicep deploy)
 
 **Symptom: AI Search fails with `InsufficientResourcesAvailable` — "The region 'X' is currently out of the resources required to provision new services."**
-This is regional capacity exhaustion, not a quota problem, and no amount of retrying in the same region fixes it. Deploy to another region. (Observed 2026-08-20: `eastus2` — the pattern's default — was exhausted; `eastus` succeeded.) Confirm your chosen region also has quota for `text-embedding-3-large` on the **Standard** SKU (not just GlobalStandard) and your chat model:
+This is regional capacity exhaustion, not a quota problem, and no amount of retrying in the same region fixes it. Deploy to another region. (Observed 2026-08-20: `eastus2` — the pattern's default — was exhausted; `eastus` succeeded.) Confirm the target region supports the chosen model deployment SKUs and has quota for them. The template uses `GlobalStandard` for `text-embedding-3-large` and its configured chat/vision models:
 
 <details><summary><b>Show quota check</b></summary>
 
@@ -150,6 +166,21 @@ Don't set both `authOptions` and `disableLocalAuth: true` in `search.bicep` — 
 
 **Symptom: skillset creation fails with HTTP 400 `'SubdomainUrl' parameter is not well-formed`.**
 The skillset's `cognitiveServices.subdomainUrl` must be the **AI Foundry** subdomain of the multi-service account — `https://<name>.services.ai.azure.com` — **without** a trailing slash. Passing the Document Intelligence / FormRecognizer endpoint (`https://<name>.cognitiveservices.azure.com/`) is rejected, even though it is literally the same resource and is what the Azure portal and the Bicep `documentIntelligenceEndpoint` output both display. The Bicep now emits `aiServicesSubdomainUrl` for this, and `post_deploy_search.py` derives it from `foundryResource`; set `aiServicesSubdomainUrl` explicitly in `demo-ids.local.json` to override.
+
+**Symptom: the CU indexer reports `404` / `GA API is not supported in this region`.**
+The Content Understanding Search skill requires its attached Foundry resource to be in a
+CU-supported region; the Search service itself can stay in its current region. Deploy the
+separate CU resource and Search identity role assignment with
+`.\scripts\deploy_content_understanding.ps1 -IdsFile .\demo-ids.local.json` from the
+repository root. The CU skillsets then use `contentUnderstandingSubdomainUrl`; Document
+Intelligence and the existing vision, embedding, and chat endpoints are unchanged. See
+[12 — Configuration reference](./12-configuration-reference.md) for the opt-in resource
+and its consumption billing.
+
+**Symptom: the indexer reports invalid or expired Storage credentials after enabling identity-based access.**
+The Search `ResourceId` connection string must end with `/;` (for example,
+`ResourceId=/subscriptions/.../storageAccounts/<name>/;`). Rebuild the ingestion pipeline
+with the current scripts so both data sources use the accepted connector format.
 
 **Symptom: `FileNotFoundError: [WinError 2] The system cannot find the file specified` when a setup script shells out to `az`.**
 On Windows the Azure CLI is `az.cmd`, which `subprocess.run(["az", ...])` cannot resolve without a shell. The scripts now resolve it through `shutil.which("az")`.
@@ -400,4 +431,4 @@ python scripts/post_deploy_search.py --ids-file demo-ids.local.json --test-retri
 
 Next: [06 - MCP endpoint and custom wrapper server](./06-mcp-endpoint-and-fallback-server.md) →
 
-*Last updated: 2026-10-02*
+*Last updated: 2026-11-03*

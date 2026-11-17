@@ -38,11 +38,17 @@ stakeholder-ready "why both services" narrative.
 
 ## Goals
 
+> [!IMPORTANT]
+> **Browser Q&A update (2026-11-16).** The default browser now calls a Foundry
+> prompt agent, which retrieves through Foundry IQ's native knowledge-base MCP
+> endpoint. See the [Q&A architecture and diagram](./13-foundry-iq-qa.md#request-path).
+> The ingestion architecture and direct Copilot path below remain unchanged.
+
 | | Goal |
 |---|---|
 | <img src="./assets/icons/file.svg" width="24" alt=""/> | Ground a coding assistant's answers in an authoritative technical document corpus, with document- and section-level citations |
 | <img src="./assets/icons/code.svg" width="24" alt=""/> | Expose that grounded retrieval as a standard **MCP tool** so any MCP-compatible client can consume it — starting with GitHub Copilot in VS Code |
-| <img src="./assets/icons/gear.svg" width="24" alt=""/> | Keep the platform low-code: no custom chat UI, no agent-orchestration runtime to author |
+| <img src="./assets/icons/gear.svg" width="24" alt=""/> | Keep retrieval low-code; use a Foundry prompt agent rather than custom browser Q&A orchestration |
 | <img src="./assets/icons/document-intelligence.svg" width="24" alt=""/> | **Handle a real technical corpus** — including 500–1,500 page reference manuals and the register/pin diagrams that carry the engineering content |
 
 ## Non-goals
@@ -155,8 +161,9 @@ FigureUnderstandingSkipped: Figure understanding was skipped because
 the model deployment returned an error.
 ```
 
-— reproducibly, across both a reasoning model (`gpt-5.5`) and a non-reasoning model
-(`gpt-4.1`), with both deployments verified serving HTTP 200 on direct chat-completions calls.
+— recorded across reasoning and non-reasoning deployments, with both reported serving
+HTTP 200 on direct chat-completions calls. Historical model identity was not independently
+revalidated for this enhancement.
 Worse, in an earlier build the same condition degraded to a *silent warning*: the tier reported
 success while producing **zero** figure descriptions.
 
@@ -221,10 +228,14 @@ questions:
 | Call site | Model | Constraint |
 |---|---|---|
 | Figure verbalization, **both tiers** (`ChatCompletionSkill`) | `gpt-4.1` (`vision`) | Non-reasoning on purpose: 30 s per-call timeout with a total-failure mode |
-| Knowledge Base query planning | `gpt-5.6-sol` (`sol`) | Runs on every MCP call; no timeout pressure, so use the frontier model |
+| Knowledge Base query planning | Explicit `queryDeployment` / `queryModel`, selected frontier pair, or baseline chat pair | Search planner compatibility must be verified independently of answer generation |
+| Optional browser answer generation | User-supplied `AZURE_OPENAI_DEPLOYMENT` | v1 chat-completions; a local/container UI does not host the model |
 | Embeddings (both tiers) | `text-embedding-3-large` (3072 dims) | Must match the index vector width |
 
-Only **one** frontier deployment is needed. Content Understanding's own figure-description
+No frontier deployment is required by default; `frontier` is an optional alias, not a model.
+Creating a Search KB does not automatically attach it to a Foundry agent; see
+[Foundry IQ integration boundaries](../README.md#knowledge-bases-and-foundry-iq).
+Content Understanding's own figure-description
 feature would have required a second, older deployment — it enforces a model allowlist that
 lags the Foundry catalog — but this pattern no longer uses that feature (see
 [Figures — one GA mechanism](#figures--one-ga-mechanism-both-tiers)).
@@ -269,4 +280,4 @@ the cost. Run `--plan` against a real corpus before quoting anything.
 
 Next: [02 - Prerequisites](./02-prerequisites.md) →
 
-*Last updated: 2026-10-02*
+*Last updated: 2026-11-16*

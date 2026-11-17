@@ -132,24 +132,22 @@ az rest --method put --url "https://management.azure.com/subscriptions/$SubId/re
 
 # Model deployments -- verify current name/version/SKU against the Foundry model
 # catalog (https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure)
-# before deploying; values below were current as of 2026-08-21.
-az cognitiveservices account deployment create --name $Foundry --resource-group $Rg --deployment-name embedding --model-name text-embedding-3-large --model-version "1" --model-format OpenAI --sku-name Standard --sku-capacity 30
+# before deploying; values below were verified against the model catalog on 2026-11-03.
+az cognitiveservices account deployment create --name $Foundry --resource-group $Rg --deployment-name embedding --model-name text-embedding-3-large --model-version "1" --model-format OpenAI --sku-name GlobalStandard --sku-capacity 30
 
 # Agentic retrieval spends this on query planning AND answer generation per call;
 # 10K TPM returns HTTP 429 on the very first query.
 az cognitiveservices account deployment create --name $Foundry --resource-group $Rg --deployment-name chat --model-name gpt-5-mini --model-version "2025-08-07" --model-format OpenAI --sku-name GlobalStandard --sku-capacity 150
 
-# --- Frontier models used by the hybrid ingestion path ---------------------
-# Image verbalization + knowledge-base query planning (no model allowlist)
-az cognitiveservices account deployment create --name $Foundry --resource-group $Rg --deployment-name sol --model-name gpt-5.6-sol --model-version "2026-07-09" --model-format OpenAI --sku-name GlobalStandard --sku-capacity 200
+# Figure verbalization on BOTH tiers; verify image/structured-output support and quota.
+az cognitiveservices account deployment create --subscription $SubId --name $Foundry --resource-group $Rg --deployment-name vision --model-name gpt-4.1 --model-version "2025-04-14" --model-format OpenAI --sku-name GlobalStandard --sku-capacity 1000
 
-# Content Understanding figure descriptions -- CU enforces its OWN model
-# allowlist that lags the Foundry catalog, so this is deliberately a different
-# (slightly older) model than `sol`. See docs/08 § Model selection.
-az cognitiveservices account deployment create --name $Foundry --resource-group $Rg --deployment-name cu-frontier --model-name gpt-5.5 --model-version "2026-04-24" --model-format OpenAI --sku-name GlobalStandard --sku-capacity 200
+# OPTIONAL planner: replace placeholders with an available Search-supported model/version.
+# Omit this deployment to use the baseline chat pair.
+az cognitiveservices account deployment create --subscription $SubId --name $Foundry --resource-group $Rg --deployment-name frontier --model-name <supported-planner-model> --model-version <available-version> --model-format OpenAI --sku-name GlobalStandard --sku-capacity 200
 ```
 
-**Portal equivalent:** Azure AI Foundry portal (or Azure Portal → Azure AI services → + Create → "Azure AI services multi-service account") → kind `AIServices`, S0 pricing tier → create a **project** in the Foundry portal → then Deployments → + Deploy model, once each for `text-embedding-3-large`, `gpt-5-mini`, `gpt-5.6-sol`, and `gpt-5.5`.
+**Portal equivalent:** Foundry portal (or Azure Portal → Azure AI services → + Create → "Azure AI services multi-service account") → kind `AIServices`, S0 pricing tier → create a **project** → Deployments → deploy the configured embedding, baseline chat and vision models. Add a frontier planner only after verifying the exact model/version, quota and Search support. See [model selection](./12-configuration-reference.md#13-models).
 
 > [!IMPORTANT]
 > **A brand-new deployment is not immediately resolvable.** Content Understanding can return `DeploymentIdNotFound` for a deployment the control plane already reports `Succeeded` — wait a few minutes and re-run.
@@ -243,7 +241,7 @@ Copy `demo-ids.template.json` to `demo-ids.local.json` (gitignored) and fill in 
 
 ### Phase 1 (manual) validation
 
-- [ ] Storage account, Foundry account (with 4 model deployments: `embedding`, `chat`, `vision`, `sol`), Search service, and Key Vault all show `Succeeded`/exist in the portal
+- [ ] Storage account, Foundry account (configured `embedding`, `chat`, `vision`, and optional `frontier` aliases), Search service, and Key Vault all show `Succeeded`/exist in the portal
 - [ ] `demo-ids.local.json` populated with the fields listed in § 1.7
 - [ ] All 4 role assignments in § 1.6 present (`az role assignment list --resource-group $Rg -o table`)
 - [ ] Search admin key stored as a Key Vault secret named `search-admin-key`
@@ -251,6 +249,13 @@ Copy `demo-ids.template.json` to `demo-ids.local.json` (gitignored) and fill in 
 ---
 
 ## Phase 2 — Ingestion
+
+> [!TIP]
+> For private Storage that your workstation cannot reach directly, first follow the
+> [uploader's manual Portal alternative](../uploader/README.md#manual-portal-alternative).
+> It creates a separate VNet-integrated Container App with container-scoped managed
+> identity access, not the optional MCP wrapper in Phase 4. Upload PDFs through that
+> app, verify their hashes, then continue with the existing ingestion build below.
 
 **No changes from the Bicep path.** `scripts/upload_documents.py` and `scripts/post_deploy_search.py` call the AI Search / Blob Storage REST APIs directly — they don't care whether the underlying resources were created by Bicep or by hand. Follow [03-deployment.md § Phase 2](./03-deployment.md#phase-2--hybrid-ingestion) exactly as written.
 
@@ -354,6 +359,14 @@ az containerapp update --name $CaName --resource-group $Rg --set-env-vars "SEARC
 
 ## Post-deployment checklist
 
+> [!IMPORTANT]
+> **Browser Q&A now uses Foundry IQ.** After the existing ingestion/KB steps,
+> follow [the manual agent path](./13-foundry-iq-qa.md#new-deployment-and-manual-path):
+> enable the project identity, grant Search Index Data Reader, connect the KB to
+> a prompt agent in Foundry, and test in the playground. Alternatively run the
+> shared `scripts\configure_foundry_iq.py` helper, then `scripts\start_qa.ps1`.
+> Neither option requires deploying a custom MCP wrapper or another answer model.
+
 Same as [03-deployment.md § Post-deployment checklist](./03-deployment.md#post-deployment-checklist) — the manual path produces an equivalent, fully-functional deployment; nothing downstream needs to know whether Phase 1/4 used Bicep or imperative CLI commands.
 
 | | Check | Where defined |
@@ -365,4 +378,4 @@ Same as [03-deployment.md § Post-deployment checklist](./03-deployment.md#post-
 
 Next: [04 - Testing](./04-testing.md) →
 
-*Last updated: 2026-10-02*
+*Last updated: 2026-11-16*

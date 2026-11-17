@@ -5,9 +5,12 @@ methodology decisions -- fair scoping, correct response parsing, correct
 knowledge-source routing -- because each one was a real bug during the
 2026-08-20 build that produced plausible but wrong numbers.
 """
+import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 import compare_extraction_tiers as cet  # noqa: E402
@@ -45,6 +48,17 @@ def test_tier_b_names_are_suffixed_and_never_collide_with_baseline():
 
 
 @patch("compare_extraction_tiers._request")
+def test_comparison_uses_same_explicit_query_model_as_baseline(mock_req):
+    mock_req.return_value = MagicMock(status_code=201)
+    cet.create_cu_knowledge_base(
+        {**IDS, "queryDeployment": "chosen-planner", "queryModel": "actual-model"}, "key",
+    )
+    parameters = mock_req.call_args.args[4]["models"][0]["azureOpenAIParameters"]
+    assert parameters["deploymentId"] == "chosen-planner"
+    assert parameters["modelName"] == "actual-model"
+
+
+@patch("compare_extraction_tiers._request")
 def test_cu_skillset_model_name_follows_the_actual_deployment(mock_req):
     """DEFECT: hardcoding the doc sample's 'gpt-4.1' against a gpt-5-mini
     deployment silently produced ZERO figure descriptions -- the skillset was
@@ -55,6 +69,15 @@ def test_cu_skillset_model_name_follows_the_actual_deployment(mock_req):
     skill = body["skills"][0]
     assert skill["modelName"] == "gpt-5-mini"
     assert skill["modelDeployment"] == "chat"
+
+
+@patch("compare_extraction_tiers._request")
+def test_cu_skillset_uses_the_supported_region_endpoint(mock_req):
+    mock_req.return_value = MagicMock(status_code=201)
+    endpoint = "https://cu-supported.services.ai.azure.com"
+    cet.create_cu_skillset({**IDS, "contentUnderstandingSubdomainUrl": endpoint}, "key")
+    body = mock_req.call_args[0][4]
+    assert body["cognitiveServices"]["subdomainUrl"] == endpoint
 
 
 @patch("compare_extraction_tiers._request")
@@ -85,6 +108,15 @@ def test_sources_parse_from_references_shape():
     assert cet._sources_from_payload(payload) == [
         "riscv-debug-specification.pdf", "riscv-spec.pdf",
     ]
+
+
+def test_sources_prefer_indexed_source_document_over_stale_reference_title():
+    payload = {"references": [
+        {"title": "old-title.pdf", "sourceData": {"sourceDocument": "manual.pdf"}},
+        {"sourceData": {"sourceDocument": "manual.pdf"}},
+        {"sourceData": {"sourceDocument": "other.pdf"}},
+    ]}
+    assert cet._sources_from_payload(payload) == ["manual.pdf", "other.pdf"]
 
 
 def test_sources_parse_from_extractive_json_shape():
@@ -173,3 +205,69 @@ def test_golden_run_targets_the_knowledge_source_of_the_tier_under_test(mock_req
     body = mock_req.call_args[0][4]
     assert body["knowledgeSourceParams"][0]["knowledgeSourceName"] == "ks-documents-cu"
     assert out["passed"] == 1
+
+
+def test_load_golden_set_for_another_corpus(tmp_path):
+    path = tmp_path / "golden.json"
+    path.write_text(json.dumps([{"q": " Which connector? ", "expect": " manual.pdf "}]), encoding="utf-8")
+    assert cet.load_golden_set(str(path)) == [{"q": "Which connector?", "expect": "manual.pdf"}]
+
+
+@pytest.mark.parametrize("data", [
+    [],
+    {},
+    [{"q": "", "expect": "manual.pdf"}],
+    [{"q": "Which connector?", "expect": 3}],
+    [{"q": "Which connector?", "expect": "manual.pdf", "page": 2}],
+    [{"q": "Same question?", "expect": "a.pdf"}, {"q": "Same question?", "expect": "b.pdf"}],
+])
+def test_load_golden_set_rejects_invalid_entries(tmp_path, data):
+    path = tmp_path / "golden.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(ValueError):
+        cet.load_golden_set(str(path))
+
+
+def test_golden_cli_uses_custom_questions_for_shared_sources(tmp_path, monkeypatch):
+    path = tmp_path / "golden.json"
+    questions = [
+        {"q": "Which connector?", "expect": "manual.pdf"},
+        {"q": "Which capacity?", "expect": "other.pdf"},
+    ]
+    path.write_text(json.dumps(questions), encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["compare", "--ids-file", "ids.json", "--golden", "--golden-file", str(path)])
+    monkeypatch.setattr(cet.pds, "load_ids", lambda _: IDS)
+    monkeypatch.setattr(cet.pds, "get_admin_key", lambda _: "key")
+    monkeypatch.setattr(cet, "common_sources", lambda *_: ["manual.pdf"])
+    calls = []
+
+    def run(_ids, _key, kb, golden, knowledge_source=None):
+        calls.append((kb, golden, knowledge_source))
+        return {"passed": 1, "total": 1}
+
+    monkeypatch.setattr(cet, "golden_run", run)
+    cet.main()
+    assert len(calls) == 2
+    assert all(call[1] == questions[:1] for call in calls)
+    assert [call[2] for call in calls] == ["ks-documents", "ks-documents-cu"]
+
+
+def test_invalid_golden_file_fails_before_cloud_access(tmp_path, monkeypatch):
+    path = tmp_path / "golden.json"
+    path.write_text("{", encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["compare", "--ids-file", "ids.json", "--golden", "--golden-file", str(path)])
+    monkeypatch.setattr(cet.pds, "load_ids", lambda _: pytest.fail("must validate before loading credentials"))
+    with pytest.raises(SystemExit) as exc:
+        cet.main()
+    assert exc.value.code == 2
+
+
+@pytest.mark.parametrize("shared", [[], ["unrelated.pdf"]])
+def test_golden_cli_refuses_uncomparable_sets(monkeypatch, shared):
+    monkeypatch.setattr(sys, "argv", ["compare", "--ids-file", "ids.json", "--golden"])
+    monkeypatch.setattr(cet.pds, "load_ids", lambda _: IDS)
+    monkeypatch.setattr(cet.pds, "get_admin_key", lambda _: "key")
+    monkeypatch.setattr(cet, "common_sources", lambda *_: shared)
+    monkeypatch.setattr(cet, "golden_run", lambda *args, **kwargs: pytest.fail("must not compare different sources"))
+    with pytest.raises(SystemExit, match="no source documents|No golden questions"):
+        cet.main()

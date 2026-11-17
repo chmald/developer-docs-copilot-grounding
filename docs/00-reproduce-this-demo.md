@@ -18,6 +18,13 @@ The single-page orchestrator for building this demo against a fresh Azure subscr
 
 ## At a glance
 
+> [!TIP]
+> **Existing indexed corpus?** Start with [13 - Foundry IQ Q&A](./13-foundry-iq-qa.md)
+> instead of rebuilding ingestion. Configure the project connection and prompt
+> agent, test in the Foundry playground, then run `scripts\start_qa.ps1`.
+> For fresh builds, postprovision now waits for indexing and configures the agent
+> unless `DEMO_CONFIGURE_FOUNDRY=false` deliberately selects foundation-only mode.
+
 | | Topic | One-line answer |
 |---|---|---|
 | <img src="./assets/icons/subscription.svg" width="24" alt=""/> | **Who it is for** | Someone cloning this repo to build the full demo against a fresh Azure subscription |
@@ -68,7 +75,7 @@ each has cost a real build time.
 | <img src="./assets/icons/subscription.svg" width="24" alt=""/> | Azure subscription with Contributor + RBAC-admin on the target resource group | ☐ |
 | <img src="./assets/icons/ai-search.svg" width="24" alt=""/> | **AI Search regional _capacity_ confirmed** | ☐ |
 | <img src="./assets/icons/policy.svg" width="24" alt=""/> | **Storage / Key Vault public network access reachable** | ☐ |
-| <img src="./assets/icons/azure-openai.svg" width="24" alt=""/> | Model quota in-region for `text-embedding-3-large` (**Standard** SKU) and the chat/vision models | ☐ |
+| <img src="./assets/icons/azure-openai.svg" width="24" alt=""/> | Model quota for `text-embedding-3-large` (**GlobalStandard** SKU) and the chat/vision models | ☐ |
 | <img src="./assets/icons/powershell.svg" width="24" alt=""/> | `az` CLI ≥ 2.60, **PowerShell 7 (`pwsh`)**, Python 3.11+ | ☐ |
 | <img src="./assets/icons/code.svg" width="24" alt=""/> | **VS Code with the GitHub Copilot Chat extension** (`github.copilot-chat`) | ☐ |
 | <img src="./assets/icons/file.svg" width="24" alt=""/> | A PDF corpus you have the right to index (see [../samples/README.md](../samples/README.md)) | ☐ |
@@ -81,7 +88,7 @@ each has cost a real build time.
       still reject creation with `InsufficientResourcesAvailable`
 - [ ] **Storage / Key Vault public network access reachable** — governed subscriptions may
       force `publicNetworkAccess: Disabled` and silently revert an override
-- [ ] Model quota in-region for `text-embedding-3-large` (**Standard** SKU) and the chat/vision
+- [ ] Model quota for `text-embedding-3-large` (**GlobalStandard** SKU) and the chat/vision
       models
 - [ ] `az` CLI ≥ 2.60, **PowerShell 7 (`pwsh`)**, Python 3.11+
 - [ ] **VS Code with the GitHub Copilot Chat extension** (`github.copilot-chat`) — note
@@ -117,7 +124,7 @@ pip install -r scripts/requirements.txt
 |---|---|---|---|
 | **A1** | <img src="./assets/icons/entra-id.svg" width="24" alt=""/> | Authenticate to the intended tenant/subscription | ☐ `az account show` matches the target |
 | **A2** | <img src="./assets/icons/resource-group.svg" width="24" alt=""/> | Deploy the Bicep (`deploy.ps1`) | ☐ `demo-ids.local.json` written |
-| **A3** | <img src="./assets/icons/azure-openai.svg" width="24" alt=""/> | Frontier model deployments (usually created by the Bicep) | ☐ `embedding`, `chat`, `sol`, `vision` listed |
+| **A3** | <img src="./assets/icons/azure-openai.svg" width="24" alt=""/> | Model deployments and optional frontier selection | ☐ configured aliases listed and serving |
 
 > [!TIP]
 > **One command instead of A1–A3:** `azd up` provisions everything below, writes
@@ -144,7 +151,10 @@ Key Vault, and RBAC, then writes `demo-ids.local.json`. Detail:
 
 ### A3. Frontier models (created by the Bicep — usually nothing to do)
 
-The Bicep now creates all four deployments (`embedding`, `chat`, `vision`, `sol`). Run the two
+The Bicep creates baseline `embedding` / `chat`, optional `vision`, and `frontier` only when
+you supply both `FRONTIER_MODEL_NAME` and `FRONTIER_MODEL_VERSION`. Without that pair, KB
+planning uses the baseline chat deployment. See [model selection](./12-configuration-reference.md#13-models).
+Run the two
 commands below only if you deployed with `deployHybridModels=false` / `DEPLOY_HYBRID_MODELS=false`
 (names must match `demo-ids.local.json`):
 
@@ -165,8 +175,9 @@ commands below only if you deployed with `deployHybridModels=false` / `DEPLOY_HY
 # misleading 30s *timeout* even though each call takes ~7s.
 az cognitiveservices account deployment create -n <foundry> -g <rg> --deployment-name vision --model-name gpt-4.1 --model-version 2025-04-14 --model-format OpenAI --sku-name GlobalStandard --sku-capacity 1000
 
-# Knowledge-base query planning. Frontier -- no timeout pressure here.
-az cognitiveservices account deployment create -n <foundry> -g <rg> --deployment-name sol --model-name gpt-5.6-sol --model-version 2026-07-09 --model-format OpenAI --sku-name GlobalStandard --sku-capacity 200
+# OPTIONAL knowledge-base planner: select an available, Search-supported model/version.
+# Placeholder values are not deployable model names. Verify target tenant/subscription first.
+az cognitiveservices account deployment create --subscription <subscription-id> -n <foundry> -g <rg> --deployment-name frontier --model-name <supported-planner-model> --model-version <available-version> --model-format OpenAI --sku-name GlobalStandard --sku-capacity 200
 ```
 
 </details>
@@ -178,7 +189,8 @@ az cognitiveservices account deployment create -n <foundry> -g <rg> --deployment
 > serving yet, even though the control plane already reports `Succeeded`. Verify with a direct
 > chat-completions call, then reset and re-run the indexers — don't start editing the skillset.
 
-**Checkpoint:** `az cognitiveservices account deployment list` shows `embedding`, `chat`, `sol`, `vision`.
+**Checkpoint:** `az cognitiveservices account deployment list` shows the configured aliases;
+verify serving behavior, not just provisioning state. `frontier` is optional, not a prerequisite.
 
 ---
 
@@ -360,4 +372,4 @@ az group delete --name rg-ddmcp-dev-eastus --yes --no-wait             # everyth
 
 Next: [01 - Architecture](./01-architecture.md) →
 
-*Last updated: 2026-10-02*
+*Last updated: 2026-11-16*

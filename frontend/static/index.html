@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>Document Grounding Studio</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="shell masthead">
+    <a class="brand" href="/" aria-label="Document Grounding Studio home"><span class="mark" aria-hidden="true">D/G</span> Developer tools <span class="pill">LOCAL WORKSPACE</span></a>
+    <span id="connection" class="connection">Reading gateway configuration…</span>
+  </header>
+  <main class="shell">
+    <section class="intro">
+      <p class="eyebrow">FOUNDRY IQ · CITED ANSWERS · FOLLOW-UP QUESTIONS</p>
+      <h1>From complex docs.<br><span>To answers you can trace.</span></h1>
+      <p class="lede">Ask your developer documentation a question. Your Foundry agent retrieves evidence through Foundry IQ and answers with the references it can verify.</p>
+    </section>
+    <div class="workspace">
+      <section class="panel composer" aria-labelledby="question-title">
+        <div class="section-heading"><span class="step">01</span><h2 id="question-title">Ask your corpus</h2></div>
+        <form id="question-form">
+          <label for="query">What are you trying to understand?</label>
+          <textarea id="query" name="query" maxlength="4000" rows="6" required placeholder="Compare the initialization sequence across these components. Which sections support the answer?"></textarea>
+          <div class="options">
+            <div><label for="mode">Experience</label><select id="mode"><option value="chat" selected disabled>Ask Foundry agent</option><option value="retrieve">Inspect retrieval (diagnostic)</option></select></div>
+            <div id="top-k-option" hidden><label for="top-k">Top results</label><input id="top-k" type="number" value="3" min="1" max="5" required></div>
+          </div>
+          <p id="chat-notice" class="hint">Retrieval does not require a chat deployment.</p>
+          <button id="submit" type="submit">Ask your documents <span aria-hidden="true">↗</span></button>
+          <button id="new-conversation" type="button">New conversation</button>
+        </form>
+        <div class="divider"></div>
+        <p class="eyebrow">TRY A QUESTION</p>
+        <div class="suggestions">
+          <button type="button" class="suggestion" data-query="Which sections describe the recommended initialization sequence?">Find an implementation sequence</button>
+          <button type="button" class="suggestion" data-query="Explain the schematic connections using only indexed evidence, and cite any available page ranges and extraction provenance.">Trace a schematic or diagram</button>
+          <button type="button" class="suggestion" data-query="What do the indexed documents say about error handling and recovery? Cite the relevant sections.">Investigate an error path</button>
+        </div>
+        <aside class="note"><strong>Evidence, not assumptions.</strong> Follow-ups use the current Foundry conversation. Page numbers and source links appear only when returned; private documents still require access. This UI does not upload documents or change ingestion.</aside>
+      </section>
+      <section class="panel results" aria-labelledby="results-title" aria-busy="false">
+        <div class="section-heading"><span class="step">02</span><h2 id="results-title">Evidence workspace</h2><span id="result-count" class="pill">READY</span></div>
+        <p id="status" role="status" aria-live="polite">Ready for your first question.</p>
+        <div id="error" role="alert" hidden></div>
+        <div id="empty" class="empty"><div class="empty-icon" aria-hidden="true">⌘</div><h3>Your sources belong beside your answer.</h3><p>Run a retrieval to view cited passages, provenance and the original MCP response. All connections and credentials stay on the server.</p></div>
+        <div id="output" hidden>
+          <p id="retrieval-notice" class="hint" hidden></p>
+          <section id="answer-section" hidden><h3>Grounded answer</h3><pre id="answer" class="prose"></pre><p class="hint">Model-generated; verify every claim against the evidence below.</p></section>
+          <section><h3>Source citations <span id="citation-count"></span></h3><div id="citations"></div></section>
+          <section id="passages-section"><h3>Retrieved passages</h3><div id="passages" class="prose"></div></section>
+          <details id="raw-section"><summary>Inspect raw MCP retrieval</summary><pre id="raw"></pre></details>
+          <details id="history-section" hidden><summary>Earlier turns in this conversation</summary><div id="history" class="prose"></div></details>
+        </div>
+      </section>
+    </div>
+    <footer><span>Document Grounding Studio</span><span>Browser → Foundry agent → Foundry IQ → your knowledge</span></footer>
+  </main>
+</body>
+</html>

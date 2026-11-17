@@ -19,6 +19,9 @@ DOC = (ROOT / "docs" / "12-configuration-reference.md").read_text(encoding="utf-
 # Set by azd itself or consumed only for verification -- documented, never Bicep outputs.
 AZD_PROVIDED = {"AZURE_ENV_NAME", "AZURE_SUBSCRIPTION_ID", "AZURE_LOCATION", "AZURE_TENANT_ID",
                 "AZURE_PRINCIPAL_ID", "AZURE_PRINCIPAL_TYPE", "AZURE_RESOURCE_GROUP"}
+HOOK_KNOBS = {"DEMO_CORPUS_DIR", "DEMO_PYTHON", "DEMO_SPLIT", "DEMO_DEPLOY_UPLOADER",
+              "UPLOADER_SUBNET_ID", "UPLOADER_ACCESS_FILE", "DEMO_CONFIGURE_FOUNDRY",
+              "FOUNDRY_KNOWLEDGE_BASE"}
 
 
 def bicep_params(path: Path) -> set[str]:
@@ -66,14 +69,14 @@ def test_every_bicep_output_is_documented_and_read_by_the_hook():
     read = set(re.findall(r"Get-Out '([A-Z_]+)'", hook))
     for out in outputs:
         assert documented(out), f"output {out} is missing from docs/12"
-    unknown = read - outputs - AZD_PROVIDED - {"DEMO_CORPUS_DIR", "DEMO_PYTHON", "DEMO_SPLIT"}
+    unknown = read - outputs - AZD_PROVIDED - HOOK_KNOBS
     assert not unknown, f"postprovision reads values nothing produces: {unknown}"
 
 
 def test_hook_knobs_are_documented():
     for hook in (INFRA / "hooks").glob("*.ps1"):
         text = hook.read_text(encoding="utf-8")
-        for var in set(re.findall(r"\$env:([A-Z_]+)", text)) | set(re.findall(r"Get-Out '((?:DEMO|WORKLOAD)_[A-Z_]+)'", text)):
+        for var in set(re.findall(r"\$env:([A-Z_]+)", text)) | set(re.findall(r"Get-Out '((?:DEMO|WORKLOAD|UPLOADER|FOUNDRY)_[A-Z_]+)'", text)):
             assert documented(var), f"{hook.name} reads {var}, which docs/12 does not document"
 
 
@@ -110,3 +113,16 @@ def test_azure_yaml_points_at_the_azd_module_and_hooks_exist():
 
 def test_azd_state_is_gitignored():
     assert re.search(r"^\.azure/\s*$", (ROOT / ".gitignore").read_text(encoding="utf-8"), re.M)
+
+
+def test_uploader_runtime_and_infrastructure_settings_are_documented():
+    app = (ROOT / "uploader" / "app.py").read_text(encoding="utf-8")
+    runtime = set(re.findall(r'(?:os\.getenv|boolean)\("([A-Z_]+)"', app))
+    for name in runtime | bicep_params(INFRA / "uploader.bicep"):
+        assert documented(name), f"uploader setting {name} is missing from docs/12"
+
+
+def test_foundry_frontend_configuration_is_documented():
+    text = (ROOT / "frontend" / "app.py").read_text(encoding="utf-8")
+    for name in set(re.findall(r'os\.getenv\("((?:FOUNDRY_|QA_BACKEND)[A-Z_]*)"', text)):
+        assert documented(name), f"Foundry runtime setting {name} is missing from docs/12"

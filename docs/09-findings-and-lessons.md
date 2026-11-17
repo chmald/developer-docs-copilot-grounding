@@ -175,8 +175,8 @@ az bicep build --file infra/modules/foundry.bicep --stdout | grep allowProjectMa
 
 ### Content Understanding figure descriptions producing nothing
 
-`FigureUnderstandingSkipped` reproduced across a reasoning model (`gpt-5.5`) *and* a
-non-reasoning model (`gpt-4.1`), with both deployments verified serving HTTP 200 directly. In
+`FigureUnderstandingSkipped` was recorded across reasoning and non-reasoning deployments
+(historical model identity not independently revalidated), with both reported serving HTTP 200 directly. In
 an earlier build the same condition degraded to a **warning** — the tier reported success while
 producing **zero** figure descriptions.
 
@@ -193,8 +193,9 @@ figure descriptions, with the skillset accepted and the indexer reporting succes
 ### Reasoning models returning empty content
 
 Reasoning tokens are charged against the completion budget. At a small budget the model spends
-everything reasoning and returns **empty content with no error** — measured: `gpt-5.6-sol` at
-800 tokens returned **0 characters**.
+everything reasoning and returns **empty content with no error** — the historical example
+at 800 tokens returned **0 characters**. Its model identity could not be substantiated;
+this is not evidence of performance or availability for a currently offered model.
 
 **Fix:** give headroom, and pass it through `extraParameters`:
 
@@ -322,8 +323,10 @@ before a POC rather than discovering it during one.
 `InsufficientResourcesAvailable`. This is capacity exhaustion, not quota; retrying in the same
 region does not help. `eastus` succeeded.
 
-**Fix:** check capacity as part of region selection, and confirm model quota for the
-**Standard** SKU (not just GlobalStandard) in the same region.
+**Fix:** check capacity as part of region selection, then verify the model catalog supports
+the deployment SKU selected by the template and that its quota is available. The current
+embedding, chat and vision deployments use `GlobalStandard`; quota for another SKU does
+not prove that a deployment is supported.
 
 ### Governed subscriptions force `publicNetworkAccess: Disabled`
 
@@ -407,4 +410,4 @@ orphaned table *tails*, which undercounted the very defect being measured.
 
 Next: [10 - Repo corpus export](./10-repo-corpus-export.md) →
 
-*Last updated: 2026-10-02*
+*Last updated: 2026-11-03*

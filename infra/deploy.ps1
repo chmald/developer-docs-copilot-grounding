@@ -139,9 +139,9 @@ if ($keyStatus -eq 'no-key') {
 
 Write-Host "`nDeployment complete. Next:" -ForegroundColor Cyan
 if (-not $summary.hybridModelsDeployed) {
-    Write-Host "  1. deployHybridModels=false: create the 'vision' and 'sol' deployments by hand (docs/00 § A3)." -ForegroundColor Cyan
+    Write-Host "  1. deployHybridModels=false: configure an existing visionDeployment before hybrid ingestion (docs/00 A3)." -ForegroundColor Cyan
 } else {
-    Write-Host "  1. Model deployments 'embedding', 'chat', 'vision' and 'sol' were created by the Bicep." -ForegroundColor Cyan
+    Write-Host "  1. Deployed 'embedding', 'chat' and 'vision'; query planner: $($summary.frontierDeployment) ($($summary.frontierModel))." -ForegroundColor Cyan
 }
 Write-Host "  2. cd ../scripts && pip install -r requirements.txt" -ForegroundColor Cyan
 Write-Host "  3. python hybrid_ingest.py --ids-file $idsLocalPath --split --plan   --source-dir <your-pdfs>" -ForegroundColor Cyan

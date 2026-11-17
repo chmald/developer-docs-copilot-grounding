@@ -31,11 +31,24 @@ resource searchService 'Microsoft.Search/searchServices@2024-06-01-preview' = {
     type: 'SystemAssigned'
   }
   properties: {
+    disableLocalAuth: false
+    authOptions: {
+      aadOrApiKey: {
+        aadAuthFailureMode: 'http401WithBearerChallenge'
+      }
+    }
+    encryptionWithCmk: {
+      enforcement: 'Unspecified'
+    }
     replicaCount: 1
     partitionCount: 1
     hostingMode: 'default'
     semanticSearch: 'standard'
     publicNetworkAccess: 'enabled'
+    networkRuleSet: {
+      bypass: 'None'
+      ipRules: []
+    }
   }
 }
 

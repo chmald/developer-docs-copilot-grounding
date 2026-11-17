@@ -138,13 +138,16 @@ az provider register --namespace Microsoft.ContainerRegistry
 | Embeddings | <img src="./assets/icons/azure-openai.svg" width="24" alt=""/> | `embedding` → `text-embedding-3-large` |
 | Baseline pipeline | <img src="./assets/icons/foundry-models.svg" width="24" alt=""/> | `chat` → `gpt-5-mini` (`2025-08-07`) — baseline / fallback pipeline (`post_deploy_search.py`) |
 | Figure verbalization | <img src="./assets/icons/foundry-models.svg" width="24" alt=""/> | `vision` → `gpt-4.1` (`2025-04-14`) — non-reasoning on purpose (30 s skill timeout) |
-| Query planning | <img src="./assets/icons/foundry-models.svg" width="24" alt=""/> | `sol` → `gpt-5.6-sol` (`2026-07-09`) — Knowledge Base query planning |
+| Query planning | <img src="./assets/icons/foundry-models.svg" width="24" alt=""/> | Baseline `chat`, or an explicitly configured Search-supported planner; optional deployment alias `frontier` |
 
-- A Foundry multi-service (`Microsoft.CognitiveServices/accounts`, kind `AIServices`) resource with **four model deployments** (all created by Bicep / `azd up`; names and versions in [12 § Models](./12-configuration-reference.md)):
+- A Foundry multi-service (`Microsoft.CognitiveServices/accounts`, kind `AIServices`) resource with configured model deployments (names and versions in [12 § Models](./12-configuration-reference.md#13-models)):
   - `embedding` — `text-embedding-3-large` (embedding vectorizer)
   - `chat` — `gpt-5-mini` (version `2025-08-07`), the baseline pipeline's chat model; upgrade to `gpt-5.4-mini` (version `2026-03-17`) if needed
   - `vision` — `gpt-4.1`, figure verbalization on both tiers; keep it non-reasoning (see [08 § Model selection](./08-extraction-tier-comparison.md#model-selection--match-the-model-to-the-call-site-not-to-a-use-frontier-rule))
-  - `sol` — `gpt-5.6-sol`, Knowledge Base query planning
+  - `frontier` — optional planner alias, created only for an explicitly supplied available model/version pair; absent means use baseline chat
+- Optional browser answers use a separately configured deployed alias. Image input, structured
+  outputs and Search planner support are separate capability checks; no target-tenant model
+  availability or quota was verified for this enhancement.
 - **Model currency note:** this pattern originally shipped with `gpt-4o-mini`, which Microsoft retires 2026-10-01 (Standard deployments auto-upgrade starting March 2026). It has been replaced with `gpt-5-mini` — always confirm the current model + version against the [Foundry Models sold by Azure catalog](https://learn.microsoft.com/en-us/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure) before deploying, since Microsoft's model catalog and retirement schedule change frequently.
 - Confirm model quota in your target region before deploying (§ 8 has the CLI check)
 
@@ -269,6 +272,14 @@ az cognitiveservices account list-models --name <foundry-account-name> --resourc
 
 ## Pre-flight checklist
 
+> [!IMPORTANT]
+> **Foundry IQ Q&A prerequisites.** Browser Q&A additionally needs a resource-backed
+> Foundry project with a system-assigned identity, an answer deployment, project
+> agent/connection permissions, and permission to assign Search Index Data Reader
+> to the project identity. Install the updated Python requirements before setup.
+> See [Q&A prerequisites](./13-foundry-iq-qa.md#prerequisites-and-authentication).
+> No extra Container App, registry or custom MCP server is needed for local Q&A.
+
 Confirm all of these before moving to [03-deployment.md](./03-deployment.md):
 
 | Step | | Action | Gate |
@@ -301,4 +312,4 @@ The same list, in full:
 
 Next: [03 - Deployment](./03-deployment.md) →
 
-*Last updated: 2026-10-02*
+*Last updated: 2026-11-16*

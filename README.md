@@ -27,7 +27,37 @@
 > [!WARNING]
 > **For testing and demonstration purposes only.** This is a personal reference demo provided "as is" under the [MIT License](LICENSE), without warranty or support. It is not an official Microsoft product or sample, has not been through a production security review, and is not intended for production use. Review, test, and harden it before reusing any part of it, deploy only to non-production subscriptions, and never use real customer or personal data.
 
-**Ground GitHub Copilot in your developer documentation.** A reusable, low-code-first pattern for grounding coding assistants — GitHub Copilot, VS Code agent mode, or any MCP-compatible client — directly on a technical document corpus (hardware datasheets, firmware reference manuals, API specs, internal engineering wikis), via a **native Model Context Protocol (MCP) endpoint exposed by Azure AI Search**. No Foundry Agent Service, Copilot Studio, or M365 Copilot sits in the loop — the coding assistant calls the knowledge base directly as an MCP tool.
+**Ask your developer documentation through Foundry IQ, or ground GitHub Copilot directly.**
+The default browser Q&A path now uses a Microsoft Foundry prompt agent connected
+to the existing Azure AI Search knowledge base through its native MCP endpoint.
+It removes the local MCP wrapper and separate direct-model call from browser Q&A.
+GitHub Copilot and other MCP clients can still call the knowledge base directly.
+The existing PDF ingestion pipeline is retained.
+
+## Foundry IQ Q&A - start here
+
+[![Foundry IQ Q&A flow](./docs/assets/foundry-iq-qa-flow.png)](./docs/assets/foundry-iq-qa-flow.png)
+
+<sub>Editable source: [foundry-iq-qa-flow.drawio](./docs/assets/foundry-iq-qa-flow.drawio).</sub>
+
+| Experience | Path | Recommendation |
+|---|---|---|
+| Browser document Q&A | Browser > thin gateway > Foundry prompt agent > Foundry IQ > existing index | Default; cited answers and follow-up context |
+| Coding assistant | GitHub Copilot > native knowledge-base MCP endpoint | Retained direct integration |
+| Retrieval diagnostics | Browser > custom MCP wrapper > Search | Explicit diagnostic/legacy path only |
+
+With an existing indexed corpus and the intended demo tenant/subscription selected:
+
+```powershell
+python scripts\configure_foundry_iq.py --ids-file demo-ids.local.json --knowledge-base kb-hybrid
+.\scripts\start_qa.ps1 -Python <path-to-configured-python.exe>
+```
+
+See [13 - Foundry IQ Q&A](./docs/13-foundry-iq-qa.md) for authentication,
+dependencies, permissions, the portal/manual path and deployment readiness.
+The Foundry connection is preview. Agent setup, cited answers and a follow-up
+were live-smoke-tested on 2026-11-16; see [the evidence](./docs/04-testing.md#2026-11-16--foundry-iq-qa).
+Foundry does not automatically host a browser website.
 
 ## At a glance
 
@@ -36,8 +66,10 @@
 | <img src="./docs/assets/icons/code.svg" width="24" alt=""> | **Who consumes it** | GitHub Copilot in VS Code (agent mode) or any MCP-compatible client, through a workspace `.vscode/mcp.json`. |
 | <img src="./docs/assets/icons/ai-search.svg" width="24" alt=""> | **Retrieval** | AI Search Knowledge Base with agentic retrieval, exposed through its **native MCP endpoint** (`/knowledgebases/{name}/mcp`). <img src="./docs/assets/badges/public-preview.svg" alt="Public preview"> <img src="./docs/assets/badges/default.svg" alt="Default"> Live-tested. |
 | <img src="./docs/assets/icons/document-intelligence.svg" width="24" alt=""> | **Ingestion** | Two tiers routed by page count: Content Understanding (≤ 300 pages) <img src="./docs/assets/badges/public-preview.svg" alt="Public preview"> and Document Intelligence Layout (> 300 pages, or `--split` parts) <img src="./docs/assets/badges/ga.svg" alt="GA">, landing in one unified index. |
-| <img src="./docs/assets/icons/azure-openai.svg" width="24" alt=""> | **Models** | Four Foundry deployments — `embedding` (`text-embedding-3-large`), `chat`, `vision` (figure verbalization) and `sol` (knowledge-base query planning). |
+| <img src="./docs/assets/icons/azure-openai.svg" width="24" alt=""> | **Models** | `embedding`, `chat`, `vision` (figure evidence), plus an optional explicitly selected `frontier` planner. Browser answer generation uses its own configured deployment. |
 | <img src="./docs/assets/icons/container-apps.svg" width="24" alt=""> | **Optional wrapper** | A custom Python MCP server on Container Apps for token lifecycle, custom processing or IP allowlisting. <img src="./docs/assets/badges/optional.svg" alt="Optional"> |
+| <img src="./docs/assets/icons/code.svg" width="24" alt=""> | **Browser Q&A** | Answer-first Foundry-agent client with citations and follow-ups; see [Foundry IQ Q&A](./docs/13-foundry-iq-qa.md). |
+| <img src="./docs/assets/icons/container-apps.svg" width="24" alt=""> | **Optional PDF uploader** | Authenticated Container App uploads through a private Blob endpoint; see [uploader/README.md](./uploader/README.md). No direct workstation Storage connection is needed. |
 | <img src="./docs/assets/icons/azure-devops.svg" width="24" alt=""> | **Deploy with** | `azd up` <img src="./docs/assets/badges/default.svg" alt="Default"> <img src="./docs/assets/badges/static-only.svg" alt="Static-only"> — or `infra/deploy.ps1`, or the manual Portal path in [docs/03b](./docs/03b-manual-deployment.md). |
 | <img src="./docs/assets/icons/folder.svg" width="24" alt=""> | **Bonus output** | Repository export — page-cited Markdown and figures committed next to the code ([docs/10](./docs/10-repo-corpus-export.md)). <img src="./docs/assets/badges/opt-in.svg" alt="Opt-in"> <img src="./docs/assets/badges/static-only.svg" alt="Static-only"> |
 
@@ -57,10 +89,28 @@ A working end-to-end pipeline that:
 - Chunks and embeds content with **AI Search integrated vectorization** (heading/page-aware split + Azure OpenAI embeddings) — no custom embedding pipeline
 - Preserves source document + heading path metadata per chunk, so answers cite the exact document and section
 - Exposes retrieval through an **AI Search Knowledge Base** (agentic retrieval — multi-query planning over the corpus)
-- Surfaces that Knowledge Base as an **MCP endpoint** two ways: (1) the **native** Knowledge Base MCP surface (`/knowledgebases/{name}/mcp` — a real, documented Azure AI Search capability, zero custom code), and (2) an **optional custom MCP server wrapper** (Python, deployable to Azure Container Apps) that adds token-lifecycle handling, custom pre/post-processing, or IP allowlisting on top of the same retrieval call
+- Surfaces that Knowledge Base as an **MCP endpoint** two ways: (1) the **native** Knowledge Base MCP surface (`/knowledgebases/{name}/mcp` — a documented Azure AI Search capability, zero custom code), and (2) an **optional custom MCP server wrapper** (Python, local or Container Apps) with configurable tool identity and cited JSON for the optional browser app. Authentication, token refresh and network controls remain operator responsibilities
 - Connects directly to **GitHub Copilot in VS Code** via a workspace `.vscode/mcp.json` — developers ask natural-language hardware/firmware questions in Copilot Chat (agent mode) and get grounded, cited answers without leaving their editor
 
-The pattern is intentionally low-code on the consumption side (zero custom UI, zero chat-agent runtime) and thin-code on the platform side (Bicep + two Python scripts). **No Foundry Agent Service, Copilot Studio, or custom chat UI required for v1.**
+The direct Copilot path remains low-code and does not require an agent or browser UI.
+The default browser experience uses a Foundry prompt agent; its small gateway is
+an API client, not a custom agent orchestration or retrieval runtime.
+
+### Choose the enhancement you need
+
+| Goal | Start here | Boundary |
+|---|---|---|
+| Select a frontier deployment | [Configuration reference — models](./docs/12-configuration-reference.md#13-models) | Supply a real deployed model alias; answer generation, vision and Search KB planning have different compatibility requirements. No target-tenant availability is assumed. |
+| Ground questions in diagrams or schematics | [DI/CU comparison](./docs/08-extraction-tier-comparison.md#diagrams-and-schematics--evidence-not-certification) | Keep both extraction tiers; preserve source/page evidence and make unreadable labels or ambiguous connectivity explicit. |
+| Understand knowledge bases / Foundry IQ | [Knowledge base integration](#knowledge-bases-and-foundry-iq) | This demo builds Search objects; it does not automatically register a Foundry agent or connection. |
+| Ask from a browser | [Frontend setup](./frontend/README.md) | Optional local/container app; not a production authentication or electrical-validation system. |
+| Upload PDFs without a workstation Storage path | [Private-storage uploader](./uploader/README.md) | Shared-token demo in a VNet-integrated Container App; upload success is separate from extraction/indexing. |
+
+> [!CAUTION]
+> **Schematic output is extracted evidence, not electrical or safety certification.** Verify every pin, net, rating and inferred connection against the original cited page. Missing or ambiguous evidence must remain unknown; a plausible model answer is not a design approval.
+
+> [!NOTE]
+> **Validation scope.** Existing live-test badges describe historical runs, not a deployment of these enhancements. Model access, quota, regional availability and end-to-end cloud behavior must be verified in your own tenant.
 
 | | Capability | Status |
 |---|---|---|
@@ -93,6 +143,8 @@ And a scripted, self-checking demo walkthrough ([docs/11](./docs/11-demo-walkthr
 > **Diagrams.** Every diagram in these docs is a PNG exported from a `.drawio` source that sits next to it in `docs/assets/` — the PNG renders everywhere (GitHub, Azure DevOps, VS Code, email, slides); the `.drawio` is what you edit. `python scripts/export_diagrams.py docs/assets --check` fails if a PNG is older than its source.
 >
 > **Reading them.** Icons are the official Microsoft Azure Architecture Icons (V24), embedded in each `.drawio` so it opens offline. Status pills mark each component: **GA**, **PREVIEW** (preview API or feature — see the [preview-status table](./docs/08-extraction-tier-comparison.md#verify-before-you-quote)), **DEFAULT** (the path the demo takes), **OPTIONAL** (can be skipped) and **OPT-IN** (off until enabled in config). Every diagram carries its own legend.
+>
+> **Scope.** The graphics retain the existing pipeline view; they do not depict the new optional browser app or prove current model availability. Use [docs/12](./docs/12-configuration-reference.md) for authoritative deployment aliases and configuration.
 
 ---
 
@@ -106,7 +158,7 @@ And a scripted, self-checking demo walkthrough ([docs/11](./docs/11-demo-walkthr
     <td align="center" width="25%"><img src="./docs/assets/icons/azure-openai.svg" width="48" alt="Azure OpenAI"><br><b>Azure OpenAI models</b><br><sub>Embeddings, figure verbalization and query planning.</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="./docs/assets/icons/foundry-models.svg" width="48" alt="Foundry Models"><br><b>Foundry account</b><br><sub>Multi-service account plus project hosting the four model deployments.</sub></td>
+    <td align="center"><img src="./docs/assets/icons/foundry-models.svg" width="48" alt="Foundry Models"><br><b>Foundry account</b><br><sub>Multi-service account plus project hosting configured model deployments.</sub></td>
     <td align="center"><img src="./docs/assets/icons/blob-block.svg" width="48" alt="Blob Storage"><br><b>Blob Storage</b><br><sub>The <code>raw/cu/</code> and <code>raw/di/</code> tier prefixes.</sub></td>
     <td align="center"><img src="./docs/assets/icons/key-vault.svg" width="48" alt="Key Vault"><br><b>Key Vault</b><br><sub>Holds the Search admin key.</sub></td>
     <td align="center"><img src="./docs/assets/icons/container-apps.svg" width="48" alt="Container Apps"><br><b>Container Apps</b> <sub>(optional)</sub><br><sub>Hosts the custom MCP server wrapper.</sub></td>
@@ -127,7 +179,9 @@ And a scripted, self-checking demo walkthrough ([docs/11](./docs/11-demo-walkthr
 
 ## Locked design decisions
 
-These decisions are **the v1 baseline**. Deviate only with an explicit architecture decision record (ADR) and updated guidance.
+These decisions describe the original ingestion and direct-Copilot baseline.
+For browser Q&A, the [Foundry IQ architecture](./docs/13-foundry-iq-qa.md) supersedes
+the wrapper/direct-model path; it does not replace ingestion or the Copilot MCP client.
 
 | # | Decision | Choice | Why | Status |
 |---|---|---|---|---|
@@ -139,7 +193,7 @@ These decisions are **the v1 baseline**. Deviate only with an explicit architect
 | 6 | <img src="./docs/assets/icons/container-apps.svg" width="20" alt=""> MCP exposure — optional wrapper | Thin **custom MCP server** (Python `mcp` SDK), deployable to Azure Container Apps or run locally over stdio | Defense-in-depth: bearer-token lifecycle management, custom pre/post-processing, or IP allowlisting beyond what the native endpoint offers on its own — not required to get a working demo | <img src="./docs/assets/badges/optional.svg" alt="Optional"> |
 | 7 | <img src="./docs/assets/icons/code.svg" width="20" alt=""> Consumption | GitHub Copilot in VS Code via workspace `.vscode/mcp.json` (agent mode) | Matches the target scenario directly — developers stay in their editor, no separate chat surface | <img src="./docs/assets/badges/default.svg" alt="Default"> |
 | 8 | <img src="./docs/assets/icons/keys.svg" width="20" alt=""> Auth (v1) | API key (Search admin/query key) | Fastest path to a working demo; Microsoft's recommended production path is an Entra ID bearer token (`https://search.azure.com/.default` scope) + **Search Index Data Reader** RBAC — documented in [01-architecture.md](./docs/01-architecture.md#trust-boundaries-and-security) | <img src="./docs/assets/badges/default.svg" alt="Default"> |
-| 9 | <img src="./docs/assets/icons/azure-devops.svg" width="20" alt=""> Deployment | **`azd up`** (Azure Developer CLI: `infra/azd.bicep` → the shared `main.bicep`, with pre/postprovision hooks) as the one-command default; `infra/deploy.ps1` for an existing resource group; a fully manual Azure Portal + imperative CLI path ([docs/03b-manual-deployment.md](./docs/03b-manual-deployment.md)). All three deploy the same `main.bicep` resources — Storage, a Foundry multi-service account with four model deployments, AI Search, Key Vault, optional Container App | One command for a demo, without losing the script and no-IaC paths some environments need. Every setting is an azd environment variable ([docs/12](./docs/12-configuration-reference.md)) | <img src="./docs/assets/badges/default.svg" alt="Default"> <img src="./docs/assets/badges/static-only.svg" alt="Static-only"> |
+| 9 | <img src="./docs/assets/icons/azure-devops.svg" width="20" alt=""> Deployment | **`azd up`** (Azure Developer CLI: `infra/azd.bicep` → the shared `main.bicep`, with pre/postprovision hooks) as the one-command default; `infra/deploy.ps1` for an existing resource group; a fully manual Azure Portal + imperative CLI path ([docs/03b-manual-deployment.md](./docs/03b-manual-deployment.md)). All three deploy the same `main.bicep` resources — Storage, a Foundry multi-service account with configured model deployments, AI Search, Key Vault, optional Container App | One command for a demo, without losing the script and no-IaC paths some environments need. Every setting is an azd environment variable ([docs/12](./docs/12-configuration-reference.md)) | <img src="./docs/assets/badges/default.svg" alt="Default"> <img src="./docs/assets/badges/static-only.svg" alt="Static-only"> |
 
 > [!IMPORTANT]
 > Decisions 4 and 5 sit on **Public preview** surface (Search API `2026-05-01-preview`), and Tier CU semantic chunking is preview too — see the [preview-status table](./docs/08-extraction-tier-comparison.md#verify-before-you-quote). A team that cannot accept preview components runs the GA Tier DI+ path for the whole corpus.
@@ -194,6 +248,8 @@ All narrative documentation lives under `docs/`, in build order. The repo root h
 | **Understand why it uses two services** | `docs/01` for the design, then **`docs/08`** for the measured justification and cost model |
 | **Sell it** | **`docs/08`** — DI-only vs CU-only vs hybrid, on real numbers — then rehearse with **`docs/11`** |
 | **Give developers the documents in their repo** | **`docs/10`** |
+| **Use the optional browser UI locally or in a container** | [frontend/README.md](./frontend/README.md) |
+| **Choose model deployments or tune schematic evidence** | [docs/12](./docs/12-configuration-reference.md), then [docs/08](./docs/08-extraction-tier-comparison.md#diagrams-and-schematics--evidence-not-certification) |
 | **Fix something** | `docs/05` (by symptom) and **`docs/09`** (every known defect and constraint) |
 
 ### Platform support
@@ -225,15 +281,20 @@ in these docs is written to paste cleanly into PowerShell, bash, or zsh.
 azd auth login --tenant-id <tenant-id>            # azd's login
 az login --tenant <tenant-id>                     # the hooks and scripts use az
 azd env new dev
+azd env set AZURE_TENANT_ID <tenant-id>
 azd env set AZURE_SUBSCRIPTION_ID <subscription-id>
+az account set --subscription <subscription-id>
+az account show --query "{tenant:tenantId, subscription:id}" -o table
 azd env set AZURE_LOCATION eastus2
+# Select actual model names/versions available to your tenant before provisioning:
+# see docs/12-configuration-reference.md, section 1.3.
 azd up
 ```
 
 > [!WARNING]
 > `azd` and `az` keep **separate logins**, and the ambient account drifts between tenants. Always sign both in explicitly (as above) before `azd up`. `azd up` itself is <img src="./docs/assets/badges/static-only.svg" alt="Static-only"> — validated offline only (90 offline tests); the live-tested path is the hybrid ingestion, knowledge base and native MCP endpoint, validated by two clean-room rebuilds in Aug 2026 ([docs/09](./docs/09-findings-and-lessons.md)).
 
-`azd up` provisions every resource (including all four model deployments), writes
+`azd up` provisions the configured resources and model deployments, writes
 `demo-ids.local.json`, stores the Search key, and, if `DEMO_CORPUS_DIR` is set, ingests your
 PDFs. Every setting is listed in [docs/12-configuration-reference.md](./docs/12-configuration-reference.md);
 the step-by-step and the `deploy.ps1` / Portal alternatives are in [docs/03](./docs/03-deployment.md)
@@ -265,7 +326,8 @@ Full detail in [02-prerequisites.md](./docs/02-prerequisites.md):
 | Lowest-code path to a working retrieval endpoint | ✅ | This pattern |
 | Teams, M365 Copilot, or a business-user chatbot | ❌ | [Document Q&A knowledge agent](https://github.com/chmald/document-qa-knowledge-agent) |
 | Corpus in Fabric/OneLake needing Fabric-native governance (RLS/OLS, Purview) | ❌ | [Document Q&A knowledge agent](https://github.com/chmald/document-qa-knowledge-agent) |
-| Custom chat UI with multi-turn memory beyond an MCP tool call | ⚠️ | Extend the wrapper, or a dedicated agent-runtime pattern |
+| Local/container browser Q&A with citations | ✅ | [Optional frontend](./frontend/README.md) |
+| Durable multi-user chat memory, enterprise UI authentication or agent orchestration | ⚠️ | A dedicated application/agent-runtime pattern |
 
 ### Use this pattern when
 
@@ -277,7 +339,7 @@ Full detail in [02-prerequisites.md](./docs/02-prerequisites.md):
 
 - The target surface is Teams, M365 Copilot, or a business-user chatbot → use [Document Q&A knowledge agent](https://github.com/chmald/document-qa-knowledge-agent) (Copilot Studio or Foundry Agent Service front end)
 - The corpus lives in Fabric/OneLake and needs Fabric-native governance (RLS/OLS, Purview) → also [Document Q&A knowledge agent](https://github.com/chmald/document-qa-knowledge-agent)
-- You specifically need a custom chat UI with multi-turn memory beyond what an MCP tool call provides → the fallback MCP server here can be extended, but consider a dedicated agent-runtime pattern instead
+- You need durable multi-user memory, enterprise UI authentication, or agent orchestration beyond the optional local demo frontend → consider a dedicated application/agent-runtime pattern
 
 ---
 
@@ -294,6 +356,24 @@ Full detail in [02-prerequisites.md](./docs/02-prerequisites.md):
 Azure AI Search's Knowledge Base MCP endpoint (`/knowledgebases/{name}/mcp`, exposing a `knowledge_base_retrieve` tool) is a **real, documented Azure AI Search capability** — not a speculative preview feature. This pattern's earlier revision guessed at an incorrect URL shape and API version; both have been corrected against current Microsoft Learn documentation (see [02-prerequisites.md](./docs/02-prerequisites.md#8--regional--preview-feature-availability) and [docs/06-mcp-endpoint-and-fallback-server.md](./docs/06-mcp-endpoint-and-fallback-server.md)). Because Azure AI Search's agentic-retrieval surface has moved quickly (it was renamed from "Knowledge Agents" to "Knowledge Bases" in 2026), **always re-verify the exact API version, endpoint path, and auth model against the current Azure AI Search REST API reference before a production build** — the CLI/REST calls to check current availability are in the linked docs. The optional custom MCP server wrapper is not required to get a working demo; it exists for defense-in-depth (token lifecycle, custom processing, network controls).
 
 ---
+
+## Knowledge bases and Foundry IQ
+
+<img src="./docs/assets/icons/foundry.svg" width="28" alt="Foundry"/>&nbsp;
+<img src="./docs/assets/icons/ai-search.svg" width="28" alt="Azure AI Search"/>
+
+[Foundry IQ](https://learn.microsoft.com/azure/foundry/agents/concepts/what-is-foundry-iq)
+describes the managed knowledge/retrieval layer for agents, powered by Azure AI Search.
+This demo's concrete artifacts remain a Search index, knowledge source and knowledge base,
+plus the native MCP endpoint
+`/knowledgebases/{name}/mcp?api-version=<supported-version>` exposing
+`knowledge_base_retrieve`. Copilot can use it directly; the optional browser app uses
+server-side retrieval and, when configured, answer generation.
+
+Creating a Search knowledge base is **not** the same as registering a Foundry connection or
+attaching a knowledge tool to a Foundry agent. Those are separate integration steps, not
+performed automatically here. Keep the existing pipeline API version until its payload
+schema has been validated; a newer API's GA badge does not make an older preview payload compatible.
 
 ## Pro-code alternative
 
@@ -348,4 +428,4 @@ If you hold a link to an old document path, use the new location below.
 
 ---
 
-*Last updated: 2026-10-08*
+*Last updated: 2026-11-02*

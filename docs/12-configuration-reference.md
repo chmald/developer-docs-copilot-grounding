@@ -22,7 +22,8 @@ different knowledge base, or retarget the pattern at another corpus — without 
 > [!IMPORTANT]
 > **Rule of thumb.** Deployment settings are **azd environment variables** (`azd env set …`).
 > Script settings are **keys in `demo-ids.local.json`**. Secrets are **never** in either: the
-> Search admin key lives in Key Vault, and everything else authenticates with your Entra login.
+> Search admin key lives in Key Vault. The optional uploader's token lives in a Container App
+> secret and a private local access file; Azure service calls use Entra authentication.
 
 ## At a glance
 
@@ -83,11 +84,17 @@ Set before `azd up` / `azd provision`. Values marked *azd* are managed by azd it
 
 ### 1.3 Models
 
-<img src="./assets/icons/azure-openai.svg" width="24" alt=""/> **Group: models** — four deployments on the Foundry account.
+<img src="./assets/icons/azure-openai.svg" width="24" alt=""/> **Group: models** — baseline deployments plus optional vision and explicitly selected frontier deployments.
 
-All four deployments are created **one after another** on the Foundry account (concurrent
-deployment operations are throttled). Capacity is in thousands of tokens per minute; requests
-per minute scale with it.
+Deployments are created **one after another** on the Foundry account (concurrent deployment
+operations are throttled). Capacity units and RPM/TPM ratios depend on the selected model/SKU;
+verify quota rather than assuming a universal conversion.
+
+**A deployment alias is not a model name.** Keep three capability checks separate:
+the browser's answer model must support its chat-completions request, the vision deployment
+must accept image input and the skill's output/token settings within its timeout, and the
+knowledge-base planner must be supported by Search agentic retrieval. Selecting a frontier
+answer deployment does not automatically make it a compatible Search planner.
 
 | Variable | Default | Deployment | Notes |
 |---|---|---|---|
@@ -95,10 +102,10 @@ per minute scale with it.
 | `EMBEDDING_CAPACITY` | `30` | | **Standard** SKU |
 | `CHAT_MODEL_NAME` · `CHAT_MODEL_VERSION` | `gpt-5-mini` / `2025-08-07` | `chat` | Baseline pipeline (`post_deploy_search.py`) |
 | `CHAT_CAPACITY` | `150` | | 10K returns HTTP 429 on the first agentic-retrieval query |
-| `DEPLOY_HYBRID_MODELS` | `true` | `vision`, `sol` | `false` skips the two below (create them by hand, [00 § A3](./00-reproduce-this-demo.md#a3-frontier-models-created-by-the-bicep--usually-nothing-to-do)) |
+| `DEPLOY_HYBRID_MODELS` | `true` | `vision`; optional `frontier` | `false` skips these optional deployments; provide existing aliases in local configuration |
 | `VISION_MODEL_NAME` · `VISION_MODEL_VERSION` | `gpt-4.1` / `2025-04-14` | `vision` | Figure verbalization on both tiers. **Keep it non-reasoning**: the vision skill's 30 s timeout fails a whole document ([08 § Model selection](./08-extraction-tier-comparison.md#model-selection--match-the-model-to-the-call-site-not-to-a-use-frontier-rule)) |
 | `VISION_CAPACITY` | `1000` | | **A reliability setting, not a cost one.** AI Search fires figure calls concurrently with no throttle; under-provisioning surfaces as a misleading 30 s timeout. Lower it only if quota forces you to, and expect slower or failed ingestion |
-| `FRONTIER_MODEL_NAME` · `FRONTIER_MODEL_VERSION` | `gpt-5.6-sol` / `2026-07-09` | `sol` | Knowledge-base query planning (no timeout pressure) |
+| `FRONTIER_MODEL_NAME` · `FRONTIER_MODEL_VERSION` | empty / empty | `frontier` only when both are supplied | Opt-in model/version pair verified by you in the target tenant; when absent, the hybrid KB uses `chatDeployment` / `chatModel` |
 | `FRONTIER_CAPACITY` | `200` | | |
 
 > [!WARNING]
@@ -106,8 +113,10 @@ per minute scale with it.
 > misleading 30-second timeout during ingestion — see [09](./09-findings-and-lessons.md#failures-that-lie-to-you).
 
 > [!NOTE]
-> **Model currency.** Model names and versions move; check the live Foundry catalog and the
-> retirement schedule before a production build, and override here rather than editing Bicep.
+> **Model currency.** Defaults are examples, not current availability guarantees. Check the
+> [Foundry catalog](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure),
+> retirement schedule, regional quota and Search planner compatibility in your own tenant.
+> Do not copy model labels from historical benchmark tables into deployment commands.
 
 ### 1.4 Hook behaviour
 
@@ -119,6 +128,15 @@ per minute scale with it.
 | `DEMO_CORPUS_DIR` | unset | postprovision | Folder of PDFs to route, upload and build in the same `azd up` |
 | `DEMO_SPLIT` | `true` | postprovision | `false` uploads oversized PDFs whole (`--no-split`) instead of splitting them |
 | `DEMO_PYTHON` | `python` | postprovision | Interpreter for ingestion — point it at your virtual environment, e.g. `.venv/Scripts/python` |
+| `DEMO_DEPLOY_UPLOADER` | `false` | postprovision | Deploy the optional VNet-connected PDF uploader through the shared helper/template |
+| `UPLOADER_SUBNET_ID` | required when uploader enabled | postprovision | Dedicated /27-or-larger subnet, delegated to `Microsoft.App/environments`, with private Blob DNS connectivity |
+| `UPLOADER_ACCESS_FILE` | user's local application data directory | postprovision | Secret-bearing access JSON path; keep outside the repository. No token is stored in azd settings |
+| `DEMO_CONFIGURE_FOUNDRY` | `true` | postprovision | Wait for successful indexing, configure the IQ connection/agent and run an answer smoke check; `false` is foundation-only mode |
+| `FOUNDRY_KNOWLEDGE_BASE` | saved `foundryKnowledgeBaseName`, otherwise `kb-hybrid` | postprovision | Existing KB to attach; set `kb-documents` for the original baseline index |
+
+With the uploader enabled, `DEMO_CORPUS_DIR` is uploaded through the app, not directly
+to Storage. This path does not split files: pre-split them, or set `DEMO_SPLIT=false`
+to explicitly allow unsplit files over 300 pages through DI+.
 
 ### 1.5 Outputs written back by azd
 
@@ -132,10 +150,14 @@ postprovision hook. Don't set these yourself.
 | `AZURE_RESOURCE_GROUP`, `AZURE_LOCATION`, `AZURE_TENANT_ID`, `DEMO_ENVIRONMENT` | `resourceGroup`, `region`, `tenantId`, `environment` |
 | `STORAGE_ACCOUNT`, `BLOB_ENDPOINT`, `RAW_CONTAINER` | `storageAccount`, `blobEndpoint`, `rawContainer` |
 | `FOUNDRY_RESOURCE`, `FOUNDRY_OPENAI_ENDPOINT`, `DOCUMENT_INTELLIGENCE_ENDPOINT`, `AI_SERVICES_SUBDOMAIN_URL`, `FOUNDRY_PROJECT` | `foundryResource`, `foundryOpenAIEndpoint`, `documentIntelligenceEndpoint`, `aiServicesSubdomainUrl`, `foundryProject` |
-| `EMBEDDING_DEPLOYMENT`, `CHAT_DEPLOYMENT`, `VISION_DEPLOYMENT`, `FRONTIER_DEPLOYMENT`, `FRONTIER_MODEL`, `HYBRID_MODELS_DEPLOYED` | `embeddingDeployment`, `chatDeployment`, `visionDeployment`, `frontierDeployment`, `frontierModel` |
+| `EMBEDDING_DEPLOYMENT`, `EMBEDDING_MODEL`, `CHAT_DEPLOYMENT`, `CHAT_MODEL`, `VISION_DEPLOYMENT`, `VISION_MODEL`, `FRONTIER_DEPLOYMENT`, `FRONTIER_MODEL`, `HYBRID_MODELS_DEPLOYED` | `embeddingDeployment`, `embeddingModel`, `chatDeployment`, `chatModel`, `visionDeployment`, `visionModel`, `frontierDeployment`, `frontierModel` |
 | `SEARCH_SERVICE`, `SEARCH_ENDPOINT`, `SEARCH_PRINCIPAL_ID` | `searchService`, `searchEndpoint`, `searchPrincipalId` |
 | `KEY_VAULT`, `KEY_VAULT_URI` | `keyVault`, `keyVaultUri` |
 | `FALLBACK_SERVER_DEPLOYED`, `CONTAINER_APP_FQDN`, `CONTAINER_REGISTRY` | `_fallback_mcp_server_fields_populated_only_if_deployed.*` |
+
+When no frontier model/version pair is selected, `FRONTIER_DEPLOYMENT` and
+`FRONTIER_MODEL` resolve to the baseline chat pair; the output name does not assert
+that a frontier model was provisioned.
 
 ---
 
@@ -175,6 +197,9 @@ updates these and **preserves every other key**, so your hand-added tunables sur
 | `corpus.chunkOverlapTokens` | `200` | same | Split skill overlap |
 | `corpus.sourceFileExtensions` | `[".pdf"]` | `upload_documents.py` | Accepted input types |
 | `corpus.exportExtractors` | `[]` (template: hardware set) ![Opt-in](./assets/badges/opt-in.svg) | `export_repo_corpus.py` | `registers`, `pins`, `electrical` — set `[]` for any non-hardware corpus |
+| `corpus.figureDescriptionPrompt` / `corpus.figureSystemPrompt` | evidence-focused prompts | `hybrid_ingest.py` | Customize visible labels/components, explicit connections and direction, confidence and uncertainty; the fixed safety instruction remains, and output never certifies a circuit |
+| `corpus.figureImageDetail` | `high` | figure verbalization | `high`, `low` or `auto`; detail is a model input setting, not a guarantee of extraction accuracy |
+| `corpus.figureOutputFormat` | `json` | `hybrid_ingest.py` | `json` requests prompt-constrained structured output; `text` requests prose. JSON is not schema-enforced or independently validated; confidence is qualitative, not calibrated |
 
 ### 3.3 Optional tunables (add the key only to change the default)
 
@@ -188,6 +213,10 @@ updates these and **preserves every other key**, so your hand-added tunables sur
 | `chatApiVersion` | `2025-04-01-preview` | `hybrid_ingest.py`, `export_repo_corpus.py` | Azure OpenAI API version for vision calls (required, or the skill 404s) |
 | `visionMaxTokens` | `1200` | `hybrid_ingest.py` | Completion budget per figure description |
 | `visionReasoningEffort` | unset ![Opt-in](./assets/badges/opt-in.svg) | `hybrid_ingest.py` | Only for a reasoning vision model; non-reasoning deployments reject it |
+| `visionDeployment` | explicitly configured | `hybrid_ingest.py` | Image-capable deployed alias required for a hybrid build; never inferred from the planner |
+| `frontierDeployment` / `frontierModel` | empty in template; provisioning outputs baseline chat pair if no frontier selected | hybrid ingestion | Optional configured planner deployment/model pair; no frontier model is presumed available |
+| `queryDeployment` / `queryModel` | unset | `hybrid_ingest.py` | Explicit planner override pair; supply both and verify Search support. Otherwise use the configured frontier pair, then the baseline chat pair |
+| `hybridContentUnderstandingEnabled` | `true` | `hybrid_ingest.py` | `false` routes all PDFs to DI+; retains the comparison/DI path rather than replacing it with CU |
 | `cuChunkTokens` | `500` | `hybrid_ingest.py`, `compare_extraction_tiers.py` | Content Understanding chunk size |
 | `cuModelDeployment` / `cuModelName` | `cu-frontier` / `gpt-4.1` | `hybrid_ingest.py` | Reference only — CU's own figure feature is not used (see the code comment) |
 | `cuFigureModelName` | — | `compare_extraction_tiers.py` | A/B harness only |
@@ -202,6 +231,7 @@ updates these and **preserves every other key**, so your hand-added tunables sur
 | `exportFigureMaxTokens` | `1500` | `export_repo_corpus.py` | Completion budget per exported figure |
 | `walkthroughKnowledgeBase` / `walkthroughKnowledgeSource` | `kb-hybrid` / `ks-hybrid` | `demo_walkthrough.py` | Which knowledge base the walkthrough rehearses against |
 | `mcpEndpointAvailability` | written by `post_deploy_search.py --check-mcp-endpoint` | `post_deploy_search.py` | Records whether the native endpoint answered |
+| `contentUnderstandingResource` / `contentUnderstandingSubdomainUrl` / `contentUnderstandingLocation` | unset unless a supported-region Content Understanding resource was deployed | `hybrid_ingest.py`, `compare_extraction_tiers.py` | Separate Foundry resource endpoint for the CU skill. Central US is not in the service's supported-region list; deploy the opt-in South Central US resource with `scripts\deploy_content_understanding.ps1`. |
 
 ---
 
@@ -215,11 +245,124 @@ updates these and **preserves every other key**, so your hand-added tunables sur
 | `SEARCH_API_KEY` | *required* | `mcp_fallback_server.py` | Key Vault reference on the Container App — never a literal |
 | `SEARCH_API_VERSION` | `2026-05-01-preview` ![Search API](./assets/badges/search-api.svg) | `mcp_fallback_server.py` | |
 | `SEARCH_INDEX_NAME` | `idx-documents` | `mcp_fallback_server.py` | |
+| `SEARCH_INDEX_SCHEMA` | `baseline` | `mcp_fallback_server.py` | Set `hybrid` for the hybrid index's page/section/tier fields in direct-index retrieval; this does not change the stored schema |
 | `KNOWLEDGE_BASE_NAME` / `KNOWLEDGE_SOURCE_NAME` | `kb-documents` / `ks-documents` | `mcp_fallback_server.py` | Point at `kb-hybrid` / `ks-hybrid` for the hybrid build |
 | `SEMANTIC_CONFIG_NAME` | `semantic-config` | `mcp_fallback_server.py` | Must match the index |
 | `MCP_TOOL_NAME` / `MCP_TOOL_DESCRIPTION` | from `corpus.*` | `mcp_fallback_server.py` | Tool identity Copilot sees |
 | `MCP_SERVER_NAME` | `knowledge-base-wrapper` | `mcp_fallback_server.py` | |
+| `MCP_TRANSPORT` | `stdio` | `mcp_fallback_server.py` | `stdio` or `streamable-http`; `--transport` overrides |
+| `MCP_HOST` | `127.0.0.1` | `mcp_fallback_server.py` | `--host` overrides; containers bind internally to `0.0.0.0`, but do not expose an unauthenticated service publicly |
+| `MCP_ALLOWED_HOSTS` | unset for local loopback | wrapper hosting | Comma-separated intended FQDNs; required for non-loopback Streamable HTTP binding, which otherwise fails. Never a wildcard trust bypass |
 | `DRAWIO_EXE` | auto-detected | `scripts/export_diagrams.py` | Path to the draw.io desktop app when it isn't on PATH |
+
+### PDF uploader
+
+<img src="./assets/icons/container-apps.svg" width="24" alt=""/> **Group: optional uploader** —
+standalone [deployment and operation runbook](../uploader/README.md).
+
+| Runtime variable | Default | Effect |
+|---|---|---|
+| `UPLOADER_STORAGE_ACCOUNT` | required | Existing Storage account name; endpoint is derived from it |
+| `UPLOADER_TOKEN` | required secret | At least 32 ASCII characters; set from the Container App `upload-token` secret, never a committed literal |
+| `UPLOADER_CONTAINER` | `raw` | Existing Blob container |
+| `UPLOADER_MAX_BYTES` | `33554432` (32 MiB) | Server-side per-file bound; accepted range 1–134217728 bytes |
+| `UPLOADER_CU_ENABLED` | `true` | `false` routes all accepted PDFs to DI+; deployment derives this from `hybridContentUnderstandingEnabled` |
+| `UPLOADER_REQUIRE_PRIVATE_STORAGE` | `true` | Reject public Storage DNS answers; deployed template always keeps this true |
+| `AZURE_CLIENT_ID` | unset locally | User-assigned managed identity client ID; deployment sets it. Local development uses DefaultAzureCredential |
+
+| `deploy_uploader.ps1` parameter | Default / source |
+|---|---|
+| `-IdsFile` | Required foundation IDs JSON; target tenant/subscription is verified before writes |
+| `-SubnetId` | Required existing dedicated subnet resource ID; its VNet sets the app region |
+| `-AccessFile` | `DeveloperDocsUploader/<environment>.local.json` under local application data |
+| `-MaxUploadBytes` | `33554432`; same allowed range as runtime |
+| `-ImageTag` | Empty builds a new image; `pdf-uploader:<existing-tag>` verifies/reuses an existing image in this registry |
+
+`upload_pdfs.ps1` takes required `-AccessFile`, `-SourceDir` (required unless
+`-StatusOnly`), and optional `-AllowLarge` for explicit unsplit DI+ consent.
+It verifies every uploaded file's SHA-256 and length against its source.
+
+| `infra/uploader.bicep` parameter | Default / meaning |
+|---|---|
+| `environment` | Required 1–12 lowercase letters/digits, from IDs |
+| `location` | Required VNet region, resolved by deployment helper |
+| `infrastructureSubnetId` | Required delegated subnet |
+| `storageAccountName` | Required existing account in the deployment resource group |
+| `rawContainer` | `raw`; helper reads the same IDs key |
+| `imageTag` | Empty during bootstrap, then `pdf-uploader:<unique-tag>` |
+| `uploadToken` | Secure parameter; generated/reused from private access file |
+| `maxUploadBytes` | `33554432`; maps to `UPLOADER_MAX_BYTES` |
+| `contentUnderstandingEnabled` | `true`; helper uses `hybridContentUnderstandingEnabled` |
+
+The helper writes only non-secret fields to `uploader` in `demo-ids.local.json`:
+`url`, `containerAppName`, `environmentName`, `registryName`, and `subnetId`.
+The separate access file contains `subscriptionId`, `environment`, `url`, and
+**secret** `token`. Never commit, print, or share that file's contents.
+
+### Optional browser app
+
+The [frontend README](../frontend/README.md) is the authoritative local/container runbook.
+Foundry-agent Q&A is now the default; the Search/MCP/direct-model fields below
+apply only to the diagnostic inspector or explicit `QA_BACKEND=legacy` mode.
+Start from the repository root with `python -m frontend.app`; the default listener is
+`127.0.0.1:8000`. Azure remains remote: this is not an offline model or ingestion service.
+
+| Variable | Default | Effect |
+|---|---|---|
+| `SEARCH_ENDPOINT` / `SEARCH_API_KEY` | operator supplied | Server-side Search credentials; never ship keys in browser JavaScript |
+| `SEARCH_INDEX_NAME` / `SEARCH_INDEX_SCHEMA` / `KNOWLEDGE_BASE_NAME` / `KNOWLEDGE_SOURCE_NAME` | match your build | Select the same index and KB used by the existing MCP/retrieval path; set schema to `hybrid` for direct hybrid-index reads |
+| `AZURE_OPENAI_V1_ENDPOINT` | unset | Optional answer endpoint, e.g. `https://<resource>.openai.azure.com/openai/v1/`; v1 chat-completions is versionless and independent of `chatApiVersion` used by the Search vision skill |
+| `AZURE_OPENAI_API_KEY` / `AZURE_OPENAI_DEPLOYMENT` | unset | Enable optional grounded answer generation using your actual deployed alias; absent means retrieval-only, not a guessed model |
+| `FRONTEND_MCP_TRANSPORT` / `FRONTEND_MCP_URL` | local stdio / unset | Optional `streamable-http` wrapper endpoint using the same `query` / `top_k` tool contract |
+| `FRONTEND_MCP_BEARER_TOKEN` / `MCP_TOOL_NAME` | unset / wrapper tool | Optional remote-wrapper authentication and tool selection; native Search `knowledge_base_retrieve` has a different schema and is not a drop-in URL replacement |
+
+> [!WARNING]
+> **Local demo only.** The app has no built-in user authentication. Keep the listener and
+> container port bound to localhost; broader exposure requires an authenticating proxy,
+> TLS, per-user authorization and rate limits. Keep `.env` files and populated deployment
+> configuration uncommitted. Container startup does not provision Azure or register Foundry tools.
+
+### Foundry IQ Q&A
+
+[![Foundry IQ configuration and request path](./assets/foundry-iq-qa-flow.png)](./assets/foundry-iq-qa-flow.png)
+
+<sub>Editable source: [foundry-iq-qa-flow.drawio](./assets/foundry-iq-qa-flow.drawio).</sub>
+
+| Runtime variable | Default | Effect |
+|---|---|---|
+| `QA_BACKEND` | `foundry` | Default direct agent invocation; `legacy` explicitly selects the prior MCP + direct-model Q&A path |
+| `FOUNDRY_PROJECT_ENDPOINT` | unset | Required server-side project URL, `https://<resource>.services.ai.azure.com/api/projects/<project>` |
+| `FOUNDRY_AGENT_NAME` | unset | Required configured prompt-agent name |
+| `FOUNDRY_AUTH_MODE` | `azure-cli` | Verify local tenant/subscription before token acquisition; `managed-identity` uses the Azure host identity |
+| `FOUNDRY_TENANT_ID` | unset | Required GUID in Azure CLI mode |
+| `FOUNDRY_SUBSCRIPTION_ID` | unset | Required GUID in Azure CLI mode |
+
+| Local IDs field | Default / source | Consuming component |
+|---|---|---|
+| `foundryProjectEndpoint` | Derived from `foundryResource` and `foundryProject`; saved by setup | Agent setup and launcher |
+| `foundryAgentName` | `document-qa` | Agent setup, smoke check and launcher |
+| `foundryAgentModel` | Existing `chatDeployment` alias | Prompt-agent answer model; does not provision another model |
+| `foundryKnowledgeBaseName` | `kb-hybrid`; explicit CLI flag takes precedence | Existing knowledge base to reuse |
+| `foundryConnectionName` | `document-knowledge` | Project-managed-identity RemoteTool connection |
+| `foundryAgent` | Setup output: `name`, `version`, `fingerprint` | Records the last configured definition; `--force` recreates a version |
+
+`scripts\configure_foundry_iq.py` accepts `--ids-file`, `--knowledge-base`,
+repeatable `--indexer`, `--timeout` (3600 seconds), `--smoke-query`, `--check`
+(no configuration writes) and `--force` (new agent version). See
+[the setup runbook](./13-foundry-iq-qa.md#configure-an-existing-corpus).
+`scripts\start_qa.ps1 -IdsFile <local-json> -Python <interpreter>` loads only
+non-secret target/agent fields and launches the local app.
+
+The Foundry connection targets the KB MCP endpoint at `2026-08-01-preview` and
+allows only `knowledge_base_retrieve`. The project connection uses
+`2025-10-01-preview`; existing Search index/KB setup retains `2026-05-01-preview`.
+The runtime Responses endpoint is `<project-endpoint>/openai/v1/responses` with
+the `https://ai.azure.com/` token audience. No keys are sent to the browser.
+See [Microsoft's connection guide](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/foundry-iq-connect).
+Search must accept Entra tokens as well as have the project identity's reader
+role. Both Bicep and existing-resource setup configure `authOptions.aadOrApiKey`
+with `aadAuthFailureMode=http401WithBearerChallenge`, preserving legacy keys.
+See [Search role enablement](https://learn.microsoft.com/en-us/azure/search/search-security-enable-roles).
 
 ---
 
@@ -244,4 +387,4 @@ Each row is a recipe card: the goal, then the commands.
 
 Next: [README](../README.md) →
 
-*Last updated: 2026-10-02*
+*Last updated: 2026-11-16*

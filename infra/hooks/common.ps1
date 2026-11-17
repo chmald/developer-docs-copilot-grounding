@@ -69,7 +69,7 @@ function Write-DemoIds {
     $keys = @(
         'resourceGroup', 'region', 'environment', 'storageAccount', 'blobEndpoint', 'rawContainer',
         'foundryResource', 'foundryOpenAIEndpoint', 'documentIntelligenceEndpoint', 'aiServicesSubdomainUrl',
-        'foundryProject', 'embeddingDeployment', 'chatDeployment', 'visionDeployment', 'frontierDeployment',
+        'foundryProject', 'embeddingDeployment', 'embeddingModel', 'chatDeployment', 'chatModel', 'visionDeployment', 'visionModel', 'frontierDeployment',
         'frontierModel', 'searchService', 'searchEndpoint', 'searchPrincipalId', 'keyVault', 'keyVaultUri'
     )
     foreach ($key in $keys) {

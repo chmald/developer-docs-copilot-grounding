@@ -72,6 +72,22 @@ def _corpus(ids: dict) -> dict:
     return ids.get("corpus") or {}
 
 
+def query_model(ids: dict) -> tuple[str, str]:
+    """Resolve the actual deployed planner; never infer a model from its alias."""
+    for deployment_key, model_key in (
+        ("queryDeployment", "queryModel"),
+        ("frontierDeployment", "frontierModel"),
+        ("chatDeployment", "chatModel"),
+    ):
+        deployment, model = ids.get(deployment_key), ids.get(model_key)
+        if deployment or model:
+            if not all(isinstance(value, str) and value.strip() and "<" not in value
+                       for value in (deployment, model)):
+                raise ValueError(f"Configure both {deployment_key} and {model_key} with deployed values.")
+            return deployment, model
+    raise ValueError("Configure queryDeployment/queryModel or chatDeployment/chatModel.")
+
+
 def load_ids(ids_file: str) -> dict:
     with open(ids_file, "r", encoding="utf-8") as f:
         return json.load(f)
@@ -169,6 +185,16 @@ def _ai_services_subdomain_url(ids: dict) -> str:
     if not url:
         url = ids["documentIntelligenceEndpoint"]
     return url.rstrip("/")
+
+
+def _content_understanding_subdomain_url(ids: dict) -> str:
+    """Use a CU-supported Foundry region when configured; preserve old deployments."""
+    configured = ids.get("contentUnderstandingSubdomainUrl")
+    if configured:
+        if not isinstance(configured, str) or not configured.startswith("https://") or configured.endswith("/"):
+            raise ValueError("contentUnderstandingSubdomainUrl must be an HTTPS Foundry subdomain without a trailing slash.")
+        return configured
+    return _ai_services_subdomain_url(ids)
 
 
 def search_request(method: str, path: str, ids: dict, admin_key: str, body: dict | None = None) -> requests.Response:
@@ -497,6 +523,7 @@ def create_knowledge_base(ids: dict, admin_key: str) -> None:
     Override with `knowledgeBaseOutputMode` in demo-ids.local.json if you are
     consuming the knowledge base from a non-LLM client that genuinely wants a
     prose answer."""
+    deployment, model = query_model(ids)
     name = ids.get("knowledgeBaseName", DEFAULT_KNOWLEDGE_BASE_NAME)
     source_name = ids.get("knowledgeSourceName", DEFAULT_KNOWLEDGE_SOURCE_NAME)
     body = {
@@ -508,8 +535,8 @@ def create_knowledge_base(ids: dict, admin_key: str) -> None:
                 "kind": "azureOpenAI",
                 "azureOpenAIParameters": {
                     "resourceUri": ids["foundryOpenAIEndpoint"],
-                    "deploymentId": ids.get("chatDeployment", "chat"),
-                    "modelName": ids.get("chatModel", "gpt-5-mini"),
+                    "deploymentId": deployment,
+                    "modelName": model,
                 },
             }
         ],

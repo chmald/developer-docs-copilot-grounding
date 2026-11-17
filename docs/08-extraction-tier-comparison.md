@@ -45,6 +45,51 @@ This is the decision guide for *which extraction tier this pattern should use*: 
 
 <sub>Editable source: [`assets/extraction-tier-comparison.drawio`](./assets/extraction-tier-comparison.drawio) - regenerate with `python scripts/export_diagrams.py docs/assets`.</sub>
 
+## Diagrams and schematics — evidence, not certification
+
+The existing CU/DI+ comparison still applies. Use CU for eligible PDFs and DI+ for oversized
+documents, or set `hybridContentUnderstandingEnabled: false` for an all-DI+ comparison.
+Both tiers share figure verbalization; enabling CU does not mean every diagram will be
+understood or every net label recovered. Use [the existing harness](#run-it-yourself)
+against identical source coverage before choosing a tier.
+
+The DI+ build retains Markdown layout extraction for text and adds a **second Layout
+pass in text mode** for figure images and location metadata: normalized images are
+documented for that mode, not the Markdown path. This adds billable Layout work; do not
+reuse historical single-pass DI cost totals as the enhanced build's estimate. See the
+[Layout skill reference](https://learn.microsoft.com/azure/search/cognitive-search-skill-document-intelligence-layout).
+
+| Evidence to preserve | Review before using an answer |
+|---|---|
+| Original source document, page/range, section and figure provenance | Open the cited PDF page; exported/split parts must map back to original page numbers |
+| Visible component identifiers, pin/net labels, arrows and explicit connections | Separate text that is actually legible from inferred connectivity; crossings are not automatically junctions |
+| Confidence and uncertainty in figure output | State cropped, unreadable, conflicting or missing evidence; do not fill gaps from common circuit patterns |
+| Grounded answer with citations | A citation proves where evidence came from, not that an electrical claim is correct |
+
+The wrapper preserves split-part page numbers and reports original-document offsets
+separately when it has a numeric source page and a recognized split filename. It does not
+invent pages for uncited chunks; verify the original PDF before relying on a page reference.
+
+Configure the evidence prompts, image detail and structured output via
+[`corpus.figureDescriptionPrompt`, `corpus.figureSystemPrompt`, `corpus.figureImageDetail`
+and `corpus.figureOutputFormat`](./12-configuration-reference.md#32-corpus-block--the-only-corpus-specific-settings).
+JSON is requested through the prompt, not enforced as a validated schema; confidence is
+qualitative, not calibrated.
+The browser app exposes retrieved citations/provenance and optional grounded answers;
+it does not upload documents or perform ingestion ([frontend setup](../frontend/README.md)).
+
+> [!CAUTION]
+> **Not electrical or safety validation.** Extracted diagrams, net descriptions and generated
+> answers are review aids only. They are not a verified netlist, a simulation, a design-rule
+> check, a component-rating assessment or a safety certification. A qualified reviewer must
+> check the cited original pages before any engineering or operational decision.
+
+> [!NOTE]
+> **Historical measurements below.** These figures describe the recorded example corpus,
+> not a fresh run or a general service guarantee. Some prior model labels could not be
+> substantiated and are marked as unverified historical deployments. Do not treat those
+> rows as evidence of a current model's availability, speed, price or compatibility.
+
 ---
 
 ## Run it yourself
@@ -345,7 +390,7 @@ rather than choosing.
 - **The vision skill's `api-version` query parameter is mandatory.** Omitting it (as the
   Microsoft sample does) returns 404, surfaced as the generic
   *"Web Api skill response is invalid"*.
-- **Use a frontier vision model — and give it token headroom.** The ChatCompletionSkill
+- **Select vision by capability and latency budget, not the frontier label.** The ChatCompletionSkill
   request timeout is **fixed at 30 seconds** and is no longer configurable (`timeout` was
   removed from the schema in Search REST API `2026-04-01`). That makes reasoning models look
   unusable. They aren't — the real trap is the **token budget**: reasoning tokens are charged
@@ -355,20 +400,18 @@ rather than choosing.
 
   | Deployment | Budget | Effort | Latency | Output |
   |---|---|---|---|---|
-  | `gpt-5.6-sol` (frontier) | 800 | default | 11.3s | **0 chars — silent failure** |
-  | `gpt-5.6-sol` (frontier) | 4000 | default | 14.3s | 1,005 chars |
-  | **`gpt-5.6-sol` (frontier)** | **4000** | **low** | **10.7s** | **785 chars** ✅ |
+  | Unverified historical deployment | 800 | default | 11.3s | **0 chars — silent failure** |
+  | Unverified historical deployment | 4000 | default | 14.3s | 1,005 chars |
+  | Unverified historical deployment | 4000 | low | 10.7s | 785 chars |
   | `gpt-5.4` | 4000 | low | 14.4s | 1,089 chars |
   | `gpt-4.1-mini` | 800 | n/a | 17.2s | 1,296 chars |
 
-  Note the frontier model at low effort is **faster than `gpt-4.1-mini`**, so there is no
-  reason to drop to a smaller model here — this skill is where diagram comprehension actually
-  happens. Set both on the skill (`reasoning_effort` also needs an API version that supports
-  it — this pattern uses `2025-04-01-preview`):
+  These historical rows do not establish a current model's speed or availability. Benchmark
+  your chosen deployment across representative figures, including tail latency. Only send
+  reasoning settings to a model/API combination that supports them:
 
   ```jsonc
-  "commonModelParameters": { "maxTokens": 4000 },
-  "extraParameters":       { "reasoning_effort": "low" }
+  "extraParameters": { "max_completion_tokens": 4000, "reasoning_effort": "low" }
   ```
 
   `reasoning_effort: "minimal"` is rejected (HTTP 400) — `low` is the floor.
@@ -520,6 +563,12 @@ Index the page range instead of heading fields:
 All prices **East US, pay-as-you-go list, retrieved 2026-08-21**, and they move — re-verify
 before quoting. Sources are linked per line.
 
+> [!IMPORTANT]
+> **Enhanced DI+ uses two Layout extraction passes** (Markdown text, then text-mode
+> images/location metadata). Budget both passes plus figure-model tokens, embeddings and
+> Search. The historical corpus totals below predate that correction and are not an
+> estimate for the enhanced build. Reprice the actual selected models and tier mix.
+
 ### Unit prices
 
 | Service | Unit | Price | Source |
@@ -530,8 +579,7 @@ before quoting. Sources are linked per line.
 | <img src="./assets/icons/foundry.svg" width="20" alt=""/> Content Understanding — document, **Basic** | per 1,000 pages | **$1.00** | same |
 | <img src="./assets/icons/foundry.svg" width="20" alt=""/> Content Understanding — document, **Standard** | per 1,000 pages | **$5.00** | same |
 | <img src="./assets/icons/foundry.svg" width="20" alt=""/> Content Understanding — contextualization (standard) | per 1M tokens | **$1.00** (1 page ≈ 1,000 tokens; 1 image ≈ 1,000 tokens) | [pricing explainer](https://learn.microsoft.com/azure/ai-services/content-understanding/pricing-explainer) |
-| <img src="./assets/icons/azure-openai.svg" width="20" alt=""/> `gpt-5.6-sol` | per 1M tokens | **$5.00 in / $30.00 out** (cached in $0.50) | [OpenAI pricing](https://azure.microsoft.com/pricing/details/cognitive-services/openai-service/) |
-| <img src="./assets/icons/azure-openai.svg" width="20" alt=""/> `gpt-5.5` | per 1M tokens | **$5.00 in / $30.00 out** | same |
+| <img src="./assets/icons/azure-openai.svg" width="20" alt=""/> Selected answer / planner / vision deployments | per 1M tokens | **Resolve from the actual model, SKU and region; prior model-specific rates withdrawn as unverified** | [OpenAI pricing](https://azure.microsoft.com/pricing/details/cognitive-services/openai-service/) |
 | <img src="./assets/icons/azure-openai.svg" width="20" alt=""/> `text-embedding-3-large` | per 1M tokens | **$0.143** | same |
 | <img src="./assets/icons/ai-search.svg" width="20" alt=""/> AI Search **Basic** (1 SU) | per hour | **$0.101** (~$73.73/mo at 730 h) | [Search pricing](https://azure.microsoft.com/pricing/details/search/) |
 | <img src="./assets/icons/ai-search.svg" width="20" alt=""/> AI Search **Standard S1** | per hour | **$0.336** (~$245/mo) | same |
@@ -630,10 +678,12 @@ The pattern runs models in **two** places, and they have opposite requirements:
 | Call site | Model | Why |
 |---|---|---|
 | **Figure verbalization**, both tiers (`ChatCompletionSkill`) | **`gpt-4.1`** (non-reasoning) | Hard 30s per-call ceiling with a **total-failure** mode — predictability beats capability |
-| **Knowledge Base query planning** | **`gpt-5.6-sol`** (frontier) | No timeout pressure — use the best available |
+| **Knowledge Base query planning** | Your `queryDeployment` / `queryModel`, configured frontier pair, or baseline chat pair | Must be supported by Search agentic retrieval; benchmark latency, quota and cost |
+| **Optional browser answers** | Your `AZURE_OPENAI_DEPLOYMENT` | Independent v1 chat-completions deployment; planner support is a separate capability |
 | Embeddings | `text-embedding-3-large` (3072 dims) | Must match the index vector width |
 
-One frontier deployment plus one vision deployment. That's it.
+No specific frontier model is required or guaranteed available. Select actual model/version
+pairs and deployed aliases using [docs/12](./12-configuration-reference.md#13-models).
 
 ### Why the vision skill is NOT a frontier reasoning model
 
@@ -646,15 +696,15 @@ Benchmarked on a real register-diagram page:
 
 | Deployment | Budget | Effort | Latency | Output |
 |---|---|---|---|---|
-| `gpt-5.6-sol` | 800 | default | 11.3s | **0 chars — silent failure** |
-| `gpt-5.6-sol` | 4000 | default | 14.3s | 1,005 chars |
-| `gpt-5.6-sol` | 4000 | low | **10.7s** | 785 chars |
+| Unverified historical deployment | 800 | default | 11.3s | **0 chars — silent failure** |
+| Unverified historical deployment | 4000 | default | 14.3s | 1,005 chars |
+| Unverified historical deployment | 4000 | low | 10.7s | 785 chars |
 | `gpt-5.4` | 4000 | low | 14.4s | 1,089 chars |
 | `gpt-4.1-mini` | 800 | n/a | 17.2s | 1,296 chars |
 
 On average latency the frontier reasoning model wins outright — and that conclusion is
 **wrong at scale**. A single-page benchmark measures the average; the 30s ceiling punishes the
-*tail*. In a real run `gpt-5.6-sol` at `reasoning_effort: low` still blew the limit on a
+*tail*. In the recorded historical run an unverified deployment at `reasoning_effort: low` still blew the limit on a
 complex figure and destroyed the whole document's ingestion. A non-reasoning model has a much
 tighter latency distribution, which is the property that actually matters here.
 
@@ -698,14 +748,14 @@ FigureUnderstandingSkipped: Figure understanding was skipped because
 the model deployment returned an error.
 ```
 
-— reproducibly across a reasoning model (`gpt-5.5`) and a non-reasoning model (`gpt-4.1`), with
+— recorded across reasoning and non-reasoning deployments (historical model identity not independently revalidated), with
 both deployments verified serving HTTP 200 directly. In an earlier build the same condition
 degraded to a **silent warning**: the tier reported success while producing zero figure
 descriptions.
 
 This pattern therefore uses the GA `ChatCompletionSkill` for figures on **both** tiers. That
-also means CU's model allowlist — which lags the Foundry catalog and caps at `gpt-5.5` — is no
-longer a constraint you have to design around.
+also avoids relying on the separate CU native-figure model allowlist. Check current
+supported models rather than treating historical allowlist claims as deployment guidance.
 
 Measured effect of the switch: CU-tier figure rows went from **0 → 78** on the same document.
 
@@ -715,15 +765,16 @@ Measured effect of the switch: CU-tier figure rows went from **0 → 78** on the
 
 > [!WARNING]
 > **Preview status — state this plainly to stakeholders.** The two capabilities this pattern
-> leans on hardest are preview. Do not quote them as GA, and do not promise an SLA for the
-> Content Understanding service until its status is confirmed.
+> leans on hardest use preview schemas in this repository. Do not infer the Search skill's
+> status from the Content Understanding service's GA release, or promise an SLA without
+> checking the particular feature, API, region and service terms.
 
 | | Capability | Status |
 |---|---|---|
 | <img src="./assets/icons/foundry.svg" width="20" alt=""/> | `chunkingProperties.method: "semantic"` (AI Search CU skill) | ![Public preview](./assets/badges/public-preview.svg) `2026-05-01-preview` API |
 | <img src="./assets/icons/foundry.svg" width="20" alt=""/> | `modelName` / `modelDeployment` figure descriptions (AI Search CU skill) | ![Public preview](./assets/badges/public-preview.svg) same API version |
-| <img src="./assets/icons/foundry.svg" width="20" alt=""/> | `ContentUnderstandingSkill` itself | ![GA](./assets/badges/ga.svg) in Search REST API `2026-04-01` |
-| <img src="./assets/icons/foundry.svg" width="20" alt=""/> | Content Understanding service | ⏳ **Unresolved in Microsoft's own docs** — the pricing page FAQ says "public preview… does not have an SLA", while the pricing-explainer describes GA behavior for API `2025-11-01`. Confirm current status before committing to an SLA. |
+| <img src="./assets/icons/foundry.svg" width="20" alt=""/> | `ContentUnderstandingSkill` integration used here | Treat the repository's Search skill/schema as preview; service GA does not upgrade the integration automatically |
+| <img src="./assets/icons/foundry.svg" width="20" alt=""/> | Content Understanding service | ![GA](./assets/badges/ga.svg) API `2025-11-01`; see [service overview](https://learn.microsoft.com/azure/ai-services/content-understanding/overview). This is separate from the Search skill and its semantic-chunking preview |
 | <img src="./assets/icons/ai-search.svg" width="20" alt=""/> | Azure AI Search **Knowledge Base** + native MCP endpoint | ![Public preview](./assets/badges/public-preview.svg) `2026-05-01-preview` API — a real, documented capability; the agentic-retrieval surface has moved quickly (renamed from "Knowledge Agents" in 2026) — re-verify the API version before a production build |
 
 The Tier DI+ path (`DocumentIntelligenceLayoutSkill` + `ChatCompletionSkill`) is ![GA](./assets/badges/ga.svg) on

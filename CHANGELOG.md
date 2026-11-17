@@ -4,6 +4,157 @@ Change history for this pattern. Entries are listed newest-first.
 
 ---
 
+## 2026-11-16
+
+### Foundry IQ Q&A simplification
+
+- Made the Foundry prompt-agent Responses path the browser Q&A default. The
+  gateway no longer starts a local MCP process or directly calls a second answer
+  model for this path. Added session-bound follow-ups, new-conversation behavior,
+  returned URL citations, and visible errors without a legacy fallback.
+- Retained the original retrieval inspector and direct-model path behind
+  `QA_BACKEND=legacy`; existing ingestion, private upload and direct Copilot MCP
+  integrations remain available. Managed ingestion is an evaluation, not a migration
+  claimed complete.
+- Added tenant-guarded setup for the project-identity Search role, RemoteTool
+  connection and prompt-agent version. Setup waits for successful indexer runs,
+  rejects empty indices and performs an answer smoke check. Postprovision now
+  fails on a missing requested corpus instead of silently reporting completion.
+- Verified the connection schema, MCP tool allowlist and project Responses
+  endpoint against [Microsoft's Foundry IQ connection guide](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/foundry-iq-connect).
+  The agent uses `knowledge_base_retrieve`; its data-plane audience is
+  `https://ai.azure.com/`. Search remains extractive; model-backed retrieval
+  planning is preserved rather than misrepresented as eliminated.
+- Added the [Q&A runbook](./docs/13-foundry-iq-qa.md), official-icon diagram,
+  configuration coverage and offline request/readiness tests.
+- Live validation exposed an existing Search `apiKeyOnly` setting that rejected
+  the agent's identity with `tool_user_error`. Added documented dual key/Entra
+  authentication to Bicep and existing-resource setup, preserving legacy clients.
+  See [Search role enablement](https://learn.microsoft.com/en-us/azure/search/search-security-enable-roles).
+- Live setup/inventory returned three citations; a gateway question and its
+  follow-up returned six and five citations. Cross-session reuse was rejected
+  with HTTP 409. Read-back confirmed Search auth and the agent allowlist.
+  This is a smoke test, not scored answer accuracy, source download access or a
+  full fresh `azd up`; [evidence and boundaries](./docs/04-testing.md#2026-11-16--foundry-iq-qa).
+
+---
+
+## 2026-11-03
+
+### Readable passages and bounded frontend retrieval
+
+- Render extracted HTML tables and basic passage formatting through a passive
+  element allowlist, without activating scripts, source attributes or embedded
+  resources. Raw MCP evidence remains available as text.
+- Lowered the frontend default to three passages and its maximum to five.
+  Corrected the Knowledge Base wrapper to honor `top_k` before encoding the
+  MCP payload; previously only direct-index search applied the requested limit.
+- Limited responses include a visible count notice and omit the full Knowledge
+  Base response so excluded passages and duplicate evidence do not bypass the cap.
+  The existing evidence-size safety limit is retained.
+
+### Local grounding frontend and Entra authentication
+
+- Added optional Azure CLI authentication for the grounded-answer model. The
+  gateway checks the intended tenant and subscription before acquiring each
+  tenant-scoped token, restricts token delivery to supported Microsoft Azure
+  service hosts, and retains API-key mode as the default.
+- Installed the frontend in an isolated x64 Python environment on Windows ARM64.
+  The local browser, stdio MCP retrieval, and an Entra-authenticated grounded
+  answer were smoke-tested against the Dell PDF Knowledge Base. Direct PDF links
+  still point to private Storage, which the workstation could not reach.
+- CU and DI+ each completed indexing all three matching PDFs with no failures.
+  A scored extraction comparison and diagram-fidelity evaluation remain unrun.
+
+### Content Understanding supported-region deployment
+
+- Fixed both hybrid and A/B-comparison Storage identity connection strings to use
+  the required trailing slash, `ResourceId=<resource-id>/;`.
+- Added an opt-in South Central US Foundry resource/project deployment and scoped
+  `Cognitive Services User` assignment for Search. Only CU skillsets use its
+  endpoint override; the existing DI+, embedding, vision, chat, and Search regions
+  are unchanged. No model deployment is created on the additional account.
+- Central US rejected CU execution because its GA API is not supported there.
+  The updated pipeline and the new resource have been deployed; CU and DI+ each
+  indexed all three matching PDFs with no failures. A same-query, per-tier search
+  returned passages from both tiers for two shared sources.
+  A hybrid Knowledge Base retrieval returned Dell source passages with page
+  references, and a live native MCP `knowledge_base_retrieve` call succeeded.
+  No scored tier comparison is claimed.
+
+### Optional private-storage PDF uploader
+
+- Added a standalone FastAPI browser uploader, nonroot container image, private-DNS
+  guard, shared-token API authentication, bounded PDF validation, SHA-256 receipts,
+  existing CU/DI+ prefix routing, and explicit refusal to overwrite.
+- Added a two-stage Bicep/deployment helper: identity, container-scoped Storage RBAC,
+  Basic ACR, VNet-integrated Container Apps environment, remote image build, then
+  app deployment. The token stays in an ACA secret/private access file, not IDs.
+- Added opt-in azd hook integration, a hash-verifying upload client, configuration
+  coverage, and an official-icon private upload diagram. Upload and downstream
+  indexing remain independently verified operations.
+- Verified the workload-profiles `/27` subnet minimum, same-region VNet/environment
+  requirement, remote ACR build, managed-identity image pull, and 240-second HTTP
+  ingress timeout against [Container Apps networking](https://learn.microsoft.com/azure/container-apps/networking),
+  [ingress](https://learn.microsoft.com/azure/container-apps/ingress-overview), and
+  [ACR Tasks](https://learn.microsoft.com/azure/container-registry/container-registry-tasks-overview).
+  The 32 MiB limit is an application default; no undocumented Azure ingress body
+  ceiling is claimed. Live results are tracked in [04 — Testing](./docs/04-testing.md#live-validation).
+- Deployed the uploader in South Central US and verified private Storage access,
+  anonymous API rejection, all three Dell PDFs (284 pages; source hashes/lengths
+  matched), and duplicate refusal. Corrected Dockerfile resolution from arbitrary
+  working directories and suppressed streamed ACR logs to avoid Windows CLI
+  encoding errors; an existing verified image can be reused on deployment retry.
+- The subsequent hybrid Search build created the index, both skillsets, and CU
+  data source, but initially returned 403 during CU indexer data-source validation.
+  The later connector correction and successful indexing are recorded above.
+
+### Regional model deployment SKU correction
+
+- The regional model catalog lists `text-embedding-3-large` on `GlobalStandard`
+  and `DataZoneStandard`, not `Standard`. Updated the Bicep and manual deployment
+  paths to use the supported `GlobalStandard` SKU.
+- The Foundry project is created before model deployments to avoid a concurrent
+  resource-operation conflict. The deployment preserves the existing private
+  Key Vault, disabled Foundry local authentication, and Search network settings.
+- Central US infrastructure and all three model deployments succeeded. The
+  Dell PDF upload was initially blocked by disabled Storage public access.
+- Provisioned an approved Blob private endpoint and linked private DNS in an
+  existing VNet reached through a connected site-to-site VPN. Workstation TCP
+  443 succeeds; Storage public access remains disabled.
+- The on-premises resolver returns the private endpoint address, but the direct
+  workstation path still resets TLS with curl, Python SSL, and the Storage CLI.
+  No direct upload was attempted on that path; the app-mediated upload above
+  bypasses it. No VPN, firewall, or public-access settings were changed.
+  See [04 — Testing](./docs/04-testing.md#live-validation).
+
+---
+
+## 2026-11-02
+
+### Corpus-specific comparison questions
+
+- Added `--golden-file` for user-supplied question/source pairs, with validation
+  before cloud access. Comparisons stop when there are no shared source documents
+  or no matching questions, rather than reporting a misleading empty score.
+- Golden scoring uses the indexed `sourceDocument` in reference data when
+  available, even if an embedded document title is stale or absent.
+- The golden score remains a top-source retrieval check; page, answer and figure
+  accuracy require separate review. No new Azure comparison has been run.
+
+### Additive browser, model-selection and schematic-grounding enhancement
+
+- Added an optional [localhost/container browser app](./frontend/README.md), retaining the native Copilot MCP path and the existing Document Intelligence / Content Understanding comparison.
+- Separated answer-model, vision-model and Search knowledge-base planner selection. Deployment aliases are configuration, not proof of model availability or capability in a target tenant.
+- Added schematic evidence guidance: document/page citations, explicit uncertainty, and no inferred electrical correctness or safety certification.
+- Corrected DI+ figure extraction to a second, text-mode Layout pass with page-location metadata; budget the extra Layout pass rather than reusing historical single-pass cost totals. Wrapper citations preserve available split-part pages and separately report original-page offsets.
+- Clarified Search knowledge bases versus [Foundry IQ](https://learn.microsoft.com/azure/foundry/agents/concepts/what-is-foundry-iq): creating Search objects does not automatically register a Foundry agent connection.
+- Corrected unsupported historical model labels in narrative documentation. Historical benchmark figures are not independently revalidated model-specific performance or price claims; rerun the comparison with your own deployed models before quoting.
+- Validation is offline only for this enhancement; no cloud provisioning, target-tenant model availability check or new live-test claim.
+- Local validation: 144 backend/frontend tests passed, including real local MCP protocol round-trips; localhost UI returned HTTP 200; dependency compatibility, JavaScript syntax, PowerShell parsing and strict documentation lint passed. Standalone Bicep CLI 0.48.1 compiled `infra/azd.bicep`. Docker runtime and live Azure/model calls were not tested. Two unchanged troubleshooting PNGs retain existing freshness warnings.
+
+---
+
 ## 2026-10-08
 
 ### Docs: rewrote for external audiences; removed internal terminology
@@ -31,7 +182,7 @@ Change history for this pattern. Entries are listed newest-first.
 | **Honest status badges**: `live-tested` only for hybrid ingestion, unified index, knowledge-base retrieval and the native MCP endpoint (Aug 2026 clean-room rebuilds); `static-only` for `azd up`, repo export and the walkthrough | Badges must never claim a live run that didn't happen |
 | `docs/assets/icons/` (official icons + attribution) and `docs/assets/badges/` (local SVG badges); `scripts/lint_doc_visuals.py` + `tests/test_doc_visuals.py` | Assets render offline; the lint keeps the standard from regressing |
 | Fixed: `scripts/export_diagrams.py` passed a 0-based `--page-index` (draw.io expects 1-based), which broke multi-page export; `scripts/check_doc_links.py` now strips inline HTML from headings before slugging (icon-led headings) | Found while adding the three-page decision tree |
-| Fixed doc drift on models: docs/01 and docs/02 now match the Bicep and docs/12 — four deployments (`embedding`, `chat` `gpt-5-mini`, `vision` `gpt-4.1`, `sol` `gpt-5.6-sol`); figures use `gpt-4.1`, not the frontier model | docs/01 and docs/02 still described the pre-v1.2 model set |
+| Aligned docs/01 and docs/02 with the then-configured embedding, chat, vision and planner deployments; the historical planner model label is withdrawn as unverified (see 2026-11-02) | docs/01 and docs/02 still described the pre-v1.2 model set |
 
 Geometry, edges and wording of every diagram are unchanged; PNGs re-exported and visually reviewed
 (`scripts/export_diagrams.py docs/assets --check` reports 0 stale).
@@ -45,7 +196,7 @@ Geometry, edges and wording of every diagram are unchanged; PNGs re-exported and
 | Change | Why |
 |---|---|
 | **`azd up`** — `azure.yaml`, `infra/azd.bicep` (subscription scope: resource group + the shared `main.bicep`), `infra/azd.parameters.json`, and `infra/hooks/` (preprovision: environment-name, tenant/subscription and soft-delete guards; postprovision: writes `demo-ids.local.json`, stores the Search key, optionally ingests `DEMO_CORPUS_DIR`) | A demo should stand up with one command. azd, `deploy.ps1` and the manual path still produce identical resources and names |
-| **All four model deployments in Bicep** — `vision` (`gpt-4.1`) and `sol` (`gpt-5.6-sol`) join `embedding` and `chat`, serialized on the account; `deployHybridModels` / `DEPLOY_HYBRID_MODELS=false` opts out | They were two manual CLI commands after every deploy — the most-skipped step |
+| Added vision and planner deployments alongside embedding and chat, serialized on the account; the historical planner model label is withdrawn as unverified (see 2026-11-02) | They were two manual CLI commands after every deploy — the most-skipped step |
 | **`infra/hooks/common.ps1`** — `deploy.ps1` and the azd hooks now share the soft-delete guard, `Write-DemoIds` (also records `visionDeployment` / `frontierDeployment` / `frontierModel`, and no longer copies the template's `_template` flag) and the Key Vault secret step | One implementation, so the two paths can't drift |
 | **New [docs/12-configuration-reference.md](./docs/12-configuration-reference.md)** — every azd variable, hook knob, Bicep output, `deploy.ps1` parameter, `demo-ids.local.json` key and runtime environment variable, with default, consumer and recipes | Configuration was spread across Bicep, scripts and code defaults |
 | **`tests/test_configuration.py`** (10 tests) | Fails when a Bicep parameter isn't settable through azd, a parameter value isn't a quoted substitution, a hook reads an output nothing produces, or any azd variable / output / script setting is missing from docs/12 |
@@ -198,11 +349,11 @@ family.
 
 **Model selection corrected — the earlier guidance in this changelog was wrong.** The
 `ChatCompletionSkill` 30-second timeout has a **total-failure** mode: one slow figure failed an
-entire 906-page document, producing zero rows. `gpt-5.6-sol` benchmarked *faster* than
+entire 906-page document, producing zero rows. An unverified historical deployment benchmarked *faster* than
 `gpt-4.1-mini` on a single page (10.7s vs 17.2s) — but a one-page benchmark measures the mean,
 while a hard ceiling punishes the tail. The vision skill now runs the **non-reasoning
-`gpt-4.1`**; frontier `gpt-5.6-sol` stays on knowledge-base query planning, where there is no
-timeout pressure. Generalisable lesson: **when a service imposes a hard per-call timeout with a
+`gpt-4.1`** in that revision; its planner model label could not be substantiated and is withdrawn.
+Generalisable lesson: **when a service imposes a hard per-call timeout with a
 total-failure mode, select on latency _variance_, not mean latency.**
 
 **Also found:** vision-heavy ingestion of very large documents is *fragile*, not merely slow —
@@ -281,14 +432,15 @@ wrong place to economise. Measured on a real register-diagram page from the corp
 
 | Deployment | maxTokens | reasoning_effort | Latency | Output |
 |---|---|---|---|---|
-| `gpt-5.6-sol` (frontier) | 800 | default | 11.3s | **0 chars — silent failure** |
-| `gpt-5.6-sol` (frontier) | 4000 | default | 14.3s | 1,005 chars |
-| **`gpt-5.6-sol` (frontier)** | **4000** | **low** | **10.7s** | **785 chars** ✅ |
+| Unverified historical deployment | 800 | default | 11.3s | **0 chars — silent failure** |
+| Unverified historical deployment | 4000 | default | 14.3s | 1,005 chars |
+| Unverified historical deployment | 4000 | low | 10.7s | 785 chars |
 | `gpt-5.4` | 4000 | low | 14.4s | 1,089 chars |
 | `gpt-4.1-mini` | 800 | n/a | 17.2s | 1,296 chars |
 
-The frontier model at low effort is **faster than the small model**, so the pattern now
-defaults to `gpt-5.6-sol` with `commonModelParameters.maxTokens: 4000` and
+The earlier conclusion that the frontier model was faster is not a current deployment
+recommendation: the recorded model identity could not be verified. That revision used a
+now-withdrawn planner/vision model label with `commonModelParameters.maxTokens: 4000` and
 `extraParameters.reasoning_effort: "low"` (both confirmed supported on
 `ChatCompletionSkill`; `reasoning_effort: "minimal"` is rejected with HTTP 400). The earlier
 "use a fast non-reasoning model" guidance was wrong about the cause — it was never latency,
@@ -299,13 +451,13 @@ places with **three different ceilings**, so "are we on frontier?" is three ques
 
 | Component | Model | Constraint |
 |---|---|---|
-| DI+ image verbalizer (`ChatCompletionSkill`) | **`gpt-5.6-sol`** | no allowlist — current frontier |
-| CU figure descriptions (`ContentUnderstandingSkill`) | **`gpt-5.5`** | CU enforces its **own allowlist that lags the Foundry catalog** |
-| Knowledge-base query planning | **`gpt-5.6-sol`** | runs on every MCP call |
+| DI+ image verbalizer (`ChatCompletionSkill`) | Unverified historical deployment | Historical configuration, not current guidance |
+| CU figure descriptions (`ContentUnderstandingSkill`) | Unverified historical deployment | Check current CU model support separately |
+| Knowledge-base query planning | Unverified historical deployment | Runs on every MCP call; verify Search support separately |
 
 Content Understanding rejects newer models outright and enumerates the current ceiling in the
 error, which is the fastest way to discover it. Upgrading the verbalizer from `gpt-4.1-mini`
-to `gpt-5.6-sol` took image-description rows **167 → 334** on the same document, zero empty,
+to the unverified historical deployment reportedly took image-description rows **167 → 334** on the same document, zero empty,
 190 capturing explicit bit/field/register structure and 20 capturing RISC-V `WARL`/`WLRL`
 semantics.
 

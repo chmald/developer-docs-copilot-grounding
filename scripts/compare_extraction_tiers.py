@@ -28,6 +28,7 @@ Usage:
     python compare_extraction_tiers.py --ids-file ../demo-ids.local.json --status
     python compare_extraction_tiers.py --ids-file ../demo-ids.local.json --audit
     python compare_extraction_tiers.py --ids-file ../demo-ids.local.json --golden
+    python compare_extraction_tiers.py --ids-file ../demo-ids.local.json --golden --golden-file <questions.json>
     python compare_extraction_tiers.py --ids-file ../demo-ids.local.json --report
 """
 from __future__ import annotations
@@ -207,7 +208,7 @@ def create_cu_skillset(ids: dict, admin_key: str) -> None:
         ],
         "cognitiveServices": {
             "@odata.type": "#Microsoft.Azure.Search.AIServicesByIdentity",
-            "subdomainUrl": pds._ai_services_subdomain_url(ids),
+            "subdomainUrl": pds._content_understanding_subdomain_url(ids),
             "identity": None,
         },
         "indexProjections": {
@@ -240,7 +241,7 @@ def create_cu_datasource_and_indexer(ids: dict, admin_key: str) -> None:
         "name": n["datasource"],
         "type": "azureblob",
         "credentials": {"connectionString": (
-            f"ResourceId={pds._storage_resource_id(ids)};"
+            f"ResourceId={pds._storage_resource_id(ids)}/;"
         )},
         "container": {"name": ids.get("rawContainer", "raw")},
     }
@@ -272,6 +273,7 @@ def create_cu_datasource_and_indexer(ids: dict, admin_key: str) -> None:
 
 def create_cu_knowledge_base(ids: dict, admin_key: str) -> None:
     n = cu_names(ids)
+    deployment, model = pds.query_model(ids)
     src = {
         "name": n["knowledgeSource"],
         "kind": "searchIndex",
@@ -297,8 +299,8 @@ def create_cu_knowledge_base(ids: dict, admin_key: str) -> None:
             "kind": "azureOpenAI",
             "azureOpenAIParameters": {
                 "resourceUri": ids["foundryOpenAIEndpoint"],
-                "deploymentId": ids.get("chatDeployment", "chat"),
-                "modelName": ids.get("chatModel", "gpt-5-mini"),
+                "deploymentId": deployment,
+                "modelName": model,
             },
         }],
         # extractiveData, for the same reason the baseline uses it: the native MCP
@@ -525,6 +527,28 @@ DEFAULT_GOLDEN = [
 ]
 
 
+def load_golden_set(path: str) -> list[dict[str, str]]:
+    try:
+        rows = json.loads(Path(path).read_text(encoding="utf-8-sig"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise ValueError(f"Cannot read golden set '{path}': {exc}") from exc
+    if not isinstance(rows, list) or not rows:
+        raise ValueError("The golden set must be a nonempty JSON array.")
+    questions = set()
+    result = []
+    for index, row in enumerate(rows, 1):
+        if not isinstance(row, dict) or set(row) != {"q", "expect"}:
+            raise ValueError(f"Golden question {index} must have exactly 'q' and 'expect' fields.")
+        if not all(isinstance(row[key], str) and row[key].strip() for key in ("q", "expect")):
+            raise ValueError(f"Golden question {index} requires nonempty string values.")
+        question, source = row["q"].strip(), row["expect"].strip()
+        if question in questions:
+            raise ValueError(f"Golden question {index} duplicates an earlier question.")
+        questions.add(question)
+        result.append({"q": question, "expect": source})
+    return result
+
+
 def _sources_from_payload(payload: dict) -> list[str]:
     """Source document titles, ranked, from either knowledge-base response shape.
 
@@ -538,29 +562,31 @@ def _sources_from_payload(payload: dict) -> list[str]:
     Parsing only the second shape scores the first as zero matches, which looks
     like a retrieval regression when nothing is wrong.
     """
-    refs = payload.get("references") or []
-    if refs:
-        # Already ranked by the service; preserve order, drop duplicates.
+    def ranked_sources(records: list) -> list[str]:
         seen, titles = set(), []
-        for r in refs:
-            t = r.get("title")
-            if t and t not in seen:
+        for record in records:
+            if not isinstance(record, dict):
+                continue
+            source_data = record.get("sourceData")
+            t = source_data.get("sourceDocument") if isinstance(source_data, dict) else None
+            t = t or record.get("sourceDocument") or record.get("title")
+            if isinstance(t, str) and t.strip() and t not in seen:
                 seen.add(t)
                 titles.append(t)
+        return titles
+
+    refs = payload.get("references") or []
+    if isinstance(refs, list):
+        # Already ranked by the service; preserve order, drop duplicates.
+        titles = ranked_sources(refs)
         if titles:
             return titles
     try:
         text = payload["response"][0]["content"][0]["text"]
         parsed = json.loads(text)
-        seen, titles = set(), []
-        for r in parsed:
-            t = r.get("title")
-            if t and t not in seen:
-                seen.add(t)
-                titles.append(t)
-        return titles
-    except Exception:
+    except (KeyError, IndexError, TypeError, json.JSONDecodeError):
         return []
+    return ranked_sources(parsed) if isinstance(parsed, list) else []
 
 
 def golden_run(ids: dict, admin_key: str, kb_name: str, golden: list[dict],
@@ -740,6 +766,7 @@ def main() -> None:
     p.add_argument("--status", action="store_true", help="Show both indexers' status")
     p.add_argument("--audit", action="store_true", help="Score chunk quality on both indexes")
     p.add_argument("--golden", action="store_true", help="Run the golden set against both knowledge bases")
+    p.add_argument("--golden-file", help="JSON array of {'q', 'expect'} entries for your corpus")
     p.add_argument("--report", action="store_true", help="Audit + golden + write the scorecard to out/")
     p.add_argument("--teardown", action="store_true", help="Delete Tier B objects only")
     p.add_argument("--only-source", default=None,
@@ -747,6 +774,13 @@ def main() -> None:
                         "documents both tiers actually ingested, so a document one tier rejected "
                         "cannot confound the comparison.")
     args = p.parse_args()
+
+    if args.golden_file and not (args.golden or args.report):
+        p.error("--golden-file requires --golden or --report")
+    try:
+        golden_candidates = load_golden_set(args.golden_file) if args.golden_file else DEFAULT_GOLDEN
+    except ValueError as exc:
+        p.error(str(exc))
 
     ids = pds.load_ids(args.ids_file)
     admin_key = pds.get_admin_key(ids)
@@ -811,10 +845,15 @@ def main() -> None:
         # Tier B about a document it could not ingest measures the page-count
         # limit a second time, not retrieval quality.
         shared = set(common_sources(ids, admin_key, ids.get("searchIndexName", "idx-documents"), n["index"]))
-        golden = [g for g in DEFAULT_GOLDEN if not shared or g["expect"] in shared]
-        skipped = [g for g in DEFAULT_GOLDEN if g not in golden]
+        if not shared:
+            raise SystemExit("Cannot run the golden comparison: the two indexes share no source documents.")
+        golden = [g for g in golden_candidates if g["expect"] in shared]
+        skipped = [g for g in golden_candidates if g not in golden]
         if skipped:
-            print(f"  skipping {len(skipped)} golden question(s) targeting documents only one tier ingested")
+            print(f"  skipping {len(skipped)} golden question(s) targeting documents not present in both tiers")
+        if not golden:
+            raise SystemExit("No golden questions target a document in both indexes. "
+                             "Provide a matching set with --golden-file.")
         print("Running golden set...")
         ga = golden_run(ids, admin_key, ids.get("knowledgeBaseName", "kb-documents"), golden,
                         knowledge_source=ids.get("knowledgeSourceName", "ks-documents"))

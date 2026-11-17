@@ -1,68 +1,55 @@
-"""
-mcp_fallback_server.py
+"""MCP retrieval wrapper: cited JSON over stdio or Streamable HTTP.
 
-A thin MCP server exposing one tool, `retrieve_technical_docs`, that grounds
-answers in the AI Search index built by post_deploy_search.py. This is an
-OPTIONAL wrapper around the native AI Search Knowledge Base -> MCP endpoint,
-not a required fallback -- it adds defense-in-depth (token lifecycle,
-custom pre/post-processing, network controls via Container Apps) on top
-of a capability that is already real and documented (see
-docs/06-mcp-endpoint-and-fallback-server.md).
-
-Retrieval strategy (each step only runs if the prior one isn't available):
-    1. AI Search Knowledge Base `retrieve` operation (agentic, multi-query)
-    2. Direct hybrid + semantic query against the index (no Knowledge Base)
-
-Environment variables (set by Container Apps secrets/env, or a local .env for
-dev -- never hardcode a key in this file):
-    SEARCH_ENDPOINT           e.g. https://srch-ddmcp-dev-eastus2.search.windows.net
-    SEARCH_API_KEY            Search admin or query key
-    SEARCH_INDEX_NAME         default: idx-documents
-    KNOWLEDGE_BASE_NAME       default: kb-documents (empty string disables the Knowledge Base path)
-    SEARCH_API_VERSION        default: 2026-05-01-preview
-    SEMANTIC_CONFIG_NAME      default: semantic-config (must match post_deploy_search.py)
-    MCP_TOOL_NAME             default: retrieve_documents -- set per corpus
-    MCP_TOOL_DESCRIPTION      set per corpus; drives whether Copilot invokes the tool
-    MCP_SERVER_NAME           default: knowledge-base-wrapper
-
-Usage:
-    python mcp_fallback_server.py --transport stdio
-    python mcp_fallback_server.py --transport streamable-http --port 8080
+Set SEARCH_ENDPOINT and SEARCH_API_KEY. KNOWLEDGE_BASE_NAME defaults to
+kb-documents; set it to an empty string to deliberately use direct semantic
+search. Service/authentication failures are errors, never silent fallbacks.
+SEARCH_INDEX_SCHEMA is baseline or hybrid and controls the selected fields.
 """
 import argparse
+import json
 import os
+import re
 
 import httpx
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 SEARCH_API_VERSION = os.environ.get("SEARCH_API_VERSION", "2026-05-01-preview")
-SEARCH_ENDPOINT = os.environ["SEARCH_ENDPOINT"]
-SEARCH_API_KEY = os.environ["SEARCH_API_KEY"]
+SEARCH_ENDPOINT = os.environ.get("SEARCH_ENDPOINT", "").rstrip("/")
+SEARCH_API_KEY = os.environ.get("SEARCH_API_KEY", "")
 SEARCH_INDEX_NAME = os.environ.get("SEARCH_INDEX_NAME", "idx-documents")
+SEARCH_INDEX_SCHEMA = os.environ.get("SEARCH_INDEX_SCHEMA", "baseline")
 KNOWLEDGE_BASE_NAME = os.environ.get("KNOWLEDGE_BASE_NAME", "kb-documents")
-# Agentic retrieval reaches the index through a knowledge source; the retrieve
-# call must name it to get citation source data back.
 KNOWLEDGE_SOURCE_NAME = os.environ.get("KNOWLEDGE_SOURCE_NAME", "ks-documents")
-
-# Must match SEMANTIC_CONFIG_NAME in post_deploy_search.py. It's an
-# index-scoped name, so the generic constant works for every corpus.
 SEMANTIC_CONFIG_NAME = os.environ.get("SEMANTIC_CONFIG_NAME", "semantic-config")
-
-# --- Corpus-specific tool identity (the one thing you SHOULD change) -----
-# GitHub Copilot decides whether to invoke an MCP tool primarily from its
-# NAME and DESCRIPTION. A generic "search documents" description gets ignored
-# for domain questions, so set these per corpus (via the `corpus` block in
-# demo-ids.local.json, surfaced here as env vars by deploy_mcp_server.ps1).
 MCP_TOOL_NAME = os.environ.get("MCP_TOOL_NAME", "retrieve_documents")
 MCP_TOOL_DESCRIPTION = os.environ.get(
     "MCP_TOOL_DESCRIPTION",
-    "Search the indexed document corpus and return grounded, cited passages "
-    "for the given question. Each result cites its source document, page "
-    "number, and section heading.",
+    "Search the indexed document corpus and return JSON with cited passages, "
+    "source URIs, available page ranges, section labels and extraction provenance.",
 )
 MCP_SERVER_NAME = os.environ.get("MCP_SERVER_NAME", "knowledge-base-wrapper")
+MCP_ALLOWED_HOSTS = [value.strip() for value in os.environ.get("MCP_ALLOWED_HOSTS", "").split(",")
+                     if value.strip()]
+mcp = FastMCP(
+    MCP_SERVER_NAME,
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=["127.0.0.1", "localhost", "[::1]",
+                       "127.0.0.1:*", "localhost:*", "[::1]:*", *MCP_ALLOWED_HOSTS],
+        allowed_origins=["http://127.0.0.1:*", "http://localhost:*", "http://[::1]:*"],
+    ),
+)
 
-mcp = FastMCP(MCP_SERVER_NAME)
+
+def _validate_config() -> None:
+    missing = [name for name, value in (
+        ("SEARCH_ENDPOINT", SEARCH_ENDPOINT), ("SEARCH_API_KEY", SEARCH_API_KEY)
+    ) if not value or "<" in value]
+    if missing:
+        raise ValueError("Configure " + ", ".join(missing) + " before retrieval.")
+    if SEARCH_INDEX_SCHEMA not in {"baseline", "hybrid"}:
+        raise ValueError("SEARCH_INDEX_SCHEMA must be baseline or hybrid.")
 
 
 def _headers() -> dict:
@@ -70,114 +57,131 @@ def _headers() -> dict:
 
 
 def _format_heading(source: dict) -> str:
-    """Heading path (h1 > h2 > h3) from the Layout skill's markdown sections.
-    Markdown mode emits headings, not page numbers -- see create_skillset in
-    post_deploy_search.py for the page-number alternative."""
-    parts = [source.get(f) for f in ("sectionH1", "sectionH2", "sectionH3")]
-    trail = " > ".join(p for p in parts if p)
-    return trail or "untitled section"
+    trail = " > ".join(source[key] for key in ("sectionH1", "sectionH2", "sectionH3")
+                       if source.get(key))
+    return source.get("sectionLabel") or trail or "untitled section"
 
 
-async def _retrieve_via_knowledge_base(query: str) -> str | None:
-    """Tries the Knowledge Base's direct (non-MCP) retrieve operation, which
-    is a more stable surface than the native /mcp endpoint. Returns None if no
-    Knowledge Base is configured or the call fails, so the caller can fall
-    back further."""
+def _source_result(source: dict, reference_id=None) -> dict:
+    start = source.get("pageNumberFrom", source.get("pageNumber"))
+    end = source.get("pageNumberTo", start)
+    title = source.get("sourceDocument") or source.get("title")
+    uri = source.get("sourceUri") or source.get("url")
+    result = {
+        "id": reference_id if reference_id is not None else source.get("chunkId"),
+        "text": source.get("content") or source.get("text") or "",
+        "title": title, "url": uri, "sourceDocument": title, "sourceUri": uri,
+        "sectionLabel": _format_heading(source),
+        "pageNumberFrom": start, "pageNumberTo": end,
+        "pageStart": start, "pageEnd": end,
+        "extractionTier": source.get("extractionTier"),
+        "contentKind": source.get("contentKind"),
+        "pageReferenceBasis": "document",
+    }
+    part = re.search(r"^(.*)__p(\d+)-(\d+)\.pdf$", title or "", re.I)
+    if part:
+        result["pageReferenceBasis"] = "split-part"
+        result["originalDocument"] = part[1] + ".pdf"
+        offset = int(part[2]) - 1
+        # A filename supplies an offset, never evidence of a chunk's page.
+        if isinstance(start, int) and not isinstance(start, bool) and start > 0:
+            result["originalPageNumberFrom"] = start + offset
+        if isinstance(end, int) and not isinstance(end, bool) and end > 0:
+            result["originalPageNumberTo"] = end + offset
+    return result
+
+
+def _encode(query: str, mode: str, results: list, answer: str = "",
+            available_results: int | None = None, top_k: int | None = None) -> str:
+    payload = {
+        "query": query, "mode": mode, "answer": answer, "results": results,
+        "message": "" if results or answer else "No matching content found in the indexed document corpus.",
+    }
+    if available_results is not None and available_results > len(results):
+        payload["limit"] = {"requested": top_k, "returned": len(results), "available": available_results}
+        payload["message"] = (
+            f"Showing {len(results)} of {available_results} knowledge-base passages (top_k={top_k}). "
+            "The full knowledge-base response was omitted because it can cite excluded passages."
+        )
+    return json.dumps(payload, ensure_ascii=False)
+
+
+async def _retrieve_via_knowledge_base(query: str, top_k: int = 5) -> str | None:
     if not KNOWLEDGE_BASE_NAME:
         return None
     url = f"{SEARCH_ENDPOINT}/knowledgebases/{KNOWLEDGE_BASE_NAME}/retrieve?api-version={SEARCH_API_VERSION}"
     body = {
         "messages": [{"role": "user", "content": [{"type": "text", "text": query}]}],
-        # Without includeReferenceSourceData the service returns
-        # references[].sourceData = null and every citation below is empty.
-        "knowledgeSourceParams": [
-            {
-                "kind": "searchIndex",
-                "knowledgeSourceName": KNOWLEDGE_SOURCE_NAME,
-                "includeReferences": True,
-                "includeReferenceSourceData": True,
-            }
-        ],
+        "knowledgeSourceParams": [{
+            "kind": "searchIndex", "knowledgeSourceName": KNOWLEDGE_SOURCE_NAME,
+            "includeReferences": True, "includeReferenceSourceData": True,
+        }],
     }
-    async with httpx.AsyncClient(timeout=30) as client:
-        try:
-            resp = await client.post(url, headers=_headers(), json=body)
-            if resp.status_code != 200:
-                return None
-            data = resp.json()
-        except httpx.HTTPError:
-            return None
-
-    response_items = data.get("response") or [{}]
-    content_items = response_items[0].get("content") or [{}]
-    answer = content_items[0].get("text", "") if content_items else ""
-    references = data.get("references") or []
-    citations = "\n".join(
-        f"- {(ref.get('sourceData') or {}).get('sourceDocument', 'unknown')} "
-        f"({_format_heading(ref.get('sourceData') or {})})"
-        for ref in references
+    async with httpx.AsyncClient(timeout=60) as client:
+        response = await client.post(url, headers=_headers(), json=body)
+        response.raise_for_status()
+        data = response.json()
+    answer = "\n".join(
+        content.get("text", "")
+        for item in (data.get("response") or [])
+        for content in (item.get("content") or [])
+        if isinstance(content.get("text"), str)
     )
-    return f"{answer}\n\nSources:\n{citations}" if answer else None
+    references = data.get("references") or []
+    results = [
+        _source_result(ref.get("sourceData") or {}, ref.get("id", ref.get("ref_id")))
+        for ref in references[:top_k]
+    ]
+    if len(references) > top_k:
+        answer = ""
+    return _encode(query, "knowledge-base", results, answer, len(references), top_k)
 
 
 async def _retrieve_via_direct_search(query: str, top_k: int) -> str:
-    """Fallback of the fallback: a direct hybrid + semantic search against the
-    index, used when no Knowledge Base is provisioned at all."""
     url = f"{SEARCH_ENDPOINT}/indexes('{SEARCH_INDEX_NAME}')/docs/search?api-version={SEARCH_API_VERSION}"
+    fields = "chunkId,content,sourceDocument,sourceUri"
+    fields += (
+        ",sectionLabel,pageNumberFrom,pageNumberTo,extractionTier,contentKind"
+        if SEARCH_INDEX_SCHEMA == "hybrid" else ",sectionH1,sectionH2,sectionH3"
+    )
     body = {
-        "search": query,
-        "queryType": "semantic",
-        "semanticConfiguration": SEMANTIC_CONFIG_NAME,
-        "top": top_k,
-        "select": "content,sourceDocument,sourceUri,sectionH1,sectionH2,sectionH3",
+        "search": query, "queryType": "semantic",
+        "semanticConfiguration": SEMANTIC_CONFIG_NAME, "top": top_k, "select": fields,
     }
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(url, headers=_headers(), json=body)
-        resp.raise_for_status()
-        results = resp.json().get("value", [])
-
-    if not results:
-        return "No matching content found in the indexed document corpus."
-
-    parts = []
-    for doc in results:
-        parts.append(
-            f"[{doc.get('sourceDocument')} — {_format_heading(doc)}]\n"
-            f"{doc.get('content')}"
-        )
-    return "\n\n---\n\n".join(parts)
+    async with httpx.AsyncClient(timeout=60) as client:
+        response = await client.post(url, headers=_headers(), json=body)
+        response.raise_for_status()
+        results = response.json().get("value", [])
+    return _encode(query, "direct-search", [_source_result(doc) for doc in results])
 
 
 async def retrieve_documents(query: str, top_k: int = 5) -> str:
-    """Search the indexed document corpus and return grounded, cited results.
-
-    Registered with a configurable name/description (see MCP_TOOL_NAME /
-    MCP_TOOL_DESCRIPTION above) so the same server serves any corpus without
-    a code edit. Tries agentic retrieval via the Knowledge Base first, falling
-    back to a direct hybrid+semantic search if no Knowledge Base is configured
-    or reachable."""
-    agent_result = await _retrieve_via_knowledge_base(query)
-    if agent_result:
-        return agent_result
-    return await _retrieve_via_direct_search(query, top_k)
+    """Return cited JSON. Direct search is opt-in by disabling the knowledge base."""
+    _validate_config()
+    if not isinstance(query, str) or not query.strip():
+        raise ValueError("query must not be empty.")
+    if isinstance(top_k, bool) or not isinstance(top_k, int) or not 1 <= top_k <= 50:
+        raise ValueError("top_k must be an integer between 1 and 50.")
+    result = await _retrieve_via_knowledge_base(query, top_k)
+    return result if result is not None else await _retrieve_via_direct_search(query, top_k)
 
 
-# Registered explicitly (rather than via the @mcp.tool() decorator) so the
-# tool's advertised name and description come from configuration.
 mcp.add_tool(retrieve_documents, name=MCP_TOOL_NAME, description=MCP_TOOL_DESCRIPTION)
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--transport", choices=["stdio", "streamable-http"], default="stdio")
+    parser.add_argument("--transport", choices=["stdio", "streamable-http"],
+                        default=os.environ.get("MCP_TRANSPORT", "stdio"))
+    parser.add_argument("--host", default=os.environ.get("MCP_HOST", "127.0.0.1"))
     parser.add_argument("--port", type=int, default=8080)
     args = parser.parse_args()
-
-    if args.transport == "streamable-http":
-        mcp.settings.port = args.port
-        mcp.run(transport="streamable-http")
-    else:
-        mcp.run(transport="stdio")
+    _validate_config()
+    if args.transport == "streamable-http" and args.host not in {"127.0.0.1", "localhost", "::1"} and not MCP_ALLOWED_HOSTS:
+        parser.error("Set MCP_ALLOWED_HOSTS to the deployed hostname(s) before binding a non-loopback host.")
+    mcp.settings.host = args.host
+    mcp.settings.port = args.port
+    mcp.run(transport=args.transport)
 
 
 if __name__ == "__main__":

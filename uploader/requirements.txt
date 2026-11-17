@@ -1,0 +1,5 @@
+fastapi==0.162.0
+uvicorn==0.54.0
+azure-storage-blob==12.24.0
+azure-identity==1.19.0
+pypdf==5.1.0

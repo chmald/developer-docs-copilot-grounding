@@ -25,7 +25,7 @@ param embeddingCapacity int = 30
 @description('Chat deployment capacity (in thousands of TPM). Agentic retrieval spends this on query planning AND answer generation per retrieve call -- 10K TPM returns HTTP 429 on the very first query. 150K is a comfortable POC floor.')
 param chatCapacity int = 150
 
-@description('Also deploy the two models the hybrid ingestion path needs (vision + frontier). Turn off only if they already exist or quota is unavailable -- then create them by hand (docs/00 A3).')
+@description('Deploy the vision model and, when explicitly configured, an optional query-planning model. Disable to use existing deployments.')
 param deployHybridModels bool = true
 
 @description('Vision model for figure verbalization on BOTH tiers. Deliberately NON-reasoning: the vision skill has a fixed 30s timeout whose failure mode is total, so latency variance matters more than capability (docs/08 § Model selection).')
@@ -37,11 +37,11 @@ param visionModelVersion string = '2025-04-14'
 @description('Vision deployment capacity (thousands of TPM; requests/minute scale with it). A RELIABILITY setting: AI Search fires figure calls concurrently with no client-side throttle, and under-provisioning surfaces as a misleading 30s timeout.')
 param visionCapacity int = 1000
 
-@description('Frontier model for knowledge-base query planning (no timeout pressure there).')
-param frontierModelName string = 'gpt-5.6-sol'
+@description('Optional query-planning model verified available in your subscription. Empty = use chat; set its version too.')
+param frontierModelName string = ''
 
 @description('Frontier model version')
-param frontierModelVersion string = '2026-07-09'
+param frontierModelVersion string = ''
 
 @description('Frontier deployment capacity (thousands of TPM)')
 param frontierCapacity int = 200
@@ -60,7 +60,7 @@ resource foundryAccount 'Microsoft.CognitiveServices/accounts@2025-06-01' = {
   properties: {
     customSubDomainName: foundryAccountName
     publicNetworkAccess: 'Enabled'
-    disableLocalAuth: false
+    disableLocalAuth: true
     // Required for the account to host Foundry projects. Without it, project
     // creation fails with "Project can only created under AIServices Kind
     // account with allowProjectManagement set to true".
@@ -89,14 +89,13 @@ resource foundryProject 'Microsoft.CognitiveServices/accounts/projects@2025-06-0
   }
 }
 
-// NOTE: Cognitive Services model deployments are known to throttle concurrent
-// operations on the same account -- the explicit dependsOn below serializes
-// the two deployments rather than relying on Bicep's default parallelism.
+// Cognitive Services rejects concurrent project and deployment operations on
+// the same account. Create the project first, then serialize model deployments.
 resource embeddingDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
   parent: foundryAccount
   name: 'embedding'
   sku: {
-    name: 'Standard'
+    name: 'GlobalStandard'
     capacity: embeddingCapacity
   }
   properties: {
@@ -106,6 +105,9 @@ resource embeddingDeployment 'Microsoft.CognitiveServices/accounts/deployments@2
       version: embeddingModelVersion
     }
   }
+  dependsOn: [
+    foundryProject
+  ]
 }
 
 resource chatDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
@@ -147,9 +149,9 @@ resource visionDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024
   ]
 }
 
-resource frontierDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = if (deployHybridModels) {
+resource frontierDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = if (deployHybridModels && !empty(frontierModelName) && !empty(frontierModelVersion)) {
   parent: foundryAccount
-  name: 'sol'
+  name: 'frontier'
   sku: {
     name: 'GlobalStandard'
     capacity: frontierCapacity
@@ -176,10 +178,9 @@ output foundryProjectName string = foundryProject.name
 output principalId string = foundryAccount.identity.principalId
 output embeddingDeploymentName string = embeddingDeployment.name
 output chatDeploymentName string = chatDeployment.name
-// Deployment names are fixed ('vision', 'sol') and must match what the scripts
-// read from demo-ids.local.json (visionDeployment / frontierDeployment).
-output visionDeploymentName string = 'vision'
+// Empty outputs never claim a disabled deployment was created.
+output visionDeploymentName string = deployHybridModels ? 'vision' : ''
 output visionModelName string = visionModelName
-output frontierDeploymentName string = 'sol'
-output frontierModelName string = frontierModelName
+output frontierDeploymentName string = deployHybridModels && !empty(frontierModelName) && !empty(frontierModelVersion) ? 'frontier' : 'chat'
+output frontierModelName string = deployHybridModels && !empty(frontierModelName) && !empty(frontierModelVersion) ? frontierModelName : chatModelName
 output hybridModelsDeployed bool = deployHybridModels

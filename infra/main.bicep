@@ -49,7 +49,7 @@ param embeddingCapacity int = 30
 @description('Chat deployment capacity (thousands of TPM)')
 param chatCapacity int = 150
 
-@description('Deploy the vision + frontier models the hybrid ingestion path needs')
+@description('Deploy vision and an optional explicitly configured query-planning model')
 param deployHybridModels bool = true
 
 @description('Vision model (figure verbalization, both tiers) -- non-reasoning on purpose')
@@ -62,10 +62,10 @@ param visionModelVersion string = '2025-04-14'
 param visionCapacity int = 1000
 
 @description('Frontier model (knowledge-base query planning)')
-param frontierModelName string = 'gpt-5.6-sol'
+param frontierModelName string = ''
 
 @description('Frontier model version')
-param frontierModelVersion string = '2026-07-09'
+param frontierModelVersion string = ''
 
 @description('Frontier deployment capacity (thousands of TPM)')
 param frontierCapacity int = 200
@@ -175,7 +175,9 @@ output deploymentSummary object = {
   aiServicesSubdomainUrl: foundry.outputs.aiServicesSubdomainUrl
   foundryProject: foundry.outputs.foundryProjectName
   embeddingDeployment: foundry.outputs.embeddingDeploymentName
+  embeddingModel: embeddingModelName
   chatDeployment: foundry.outputs.chatDeploymentName
+  chatModel: chatModelName
   visionDeployment: foundry.outputs.visionDeploymentName
   visionModel: foundry.outputs.visionModelName
   frontierDeployment: foundry.outputs.frontierDeploymentName

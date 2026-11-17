@@ -25,6 +25,9 @@ $location = $env:AZURE_LOCATION
 $subscription = $env:AZURE_SUBSCRIPTION_ID
 $tenant = $env:AZURE_TENANT_ID
 $workload = if ($env:WORKLOAD_NAME) { $env:WORKLOAD_NAME } else { 'ddmcp' }
+if ([bool]$env:FRONTIER_MODEL_NAME -ne [bool]$env:FRONTIER_MODEL_VERSION) {
+    Stop-Hook "Set both FRONTIER_MODEL_NAME and FRONTIER_MODEL_VERSION, or leave both empty to use chat."
+}
 
 # --- 1. environment name ---------------------------------------------------
 if ($envName -notmatch '^[a-z0-9]{1,12}$') {

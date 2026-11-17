@@ -24,6 +24,13 @@ then use `--present` **during** the session as the presenter script.
 > **Example:** [`samples/walkthrough.example.json`](../samples/walkthrough.example.json) ·
 > **Tests:** [`tests/test_demo_walkthrough.py`](../tests/test_demo_walkthrough.py) (offline)
 
+> [!WARNING]
+> On 2026-11-03, infrastructure/models and a VNet-integrated uploader were deployed.
+> The uploader bypassed workstation Storage TLS failures and uploaded three Dell
+> PDFs (284 pages) with matching hashes, while Storage public access stayed disabled.
+> Search indexer creation then returned 403 during data-source validation; this
+> walkthrough has not run against that corpus. See [04 — Testing](./04-testing.md#live-validation).
+
 ## At a glance
 
 | | Phase | Command | Azure calls |
@@ -157,4 +164,4 @@ hybrid build's `kb-hybrid` / `ks-hybrid`.
 
 Next: [12 - Configuration reference](./12-configuration-reference.md) →
 
-*Last updated: 2026-10-02*
+*Last updated: 2026-11-03*
